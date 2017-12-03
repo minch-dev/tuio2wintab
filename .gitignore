@@ -1,0 +1,13 @@
+windows/Release/
+
+*.mode1v3
+*.pbxuser
+*.perspectivev3
+*.xcuserdatad
+*.o
+*.so
+*.a
+*.db
+*.dylib
+*.suo
+*.sdf
