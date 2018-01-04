@@ -10,6 +10,7 @@ of merchantability or fitness for any particular purpose.
 #include "stdafx.h"
 #include <tchar.h>
 #include <assert.h>
+#include <map>
 
 #define API __declspec(dllexport) WINAPI
 #include "wintab.h"
@@ -17,12 +18,13 @@ of merchantability or fitness for any particular purpose.
 
 
 #define INI_FILE                _T("wintab32.ini")
-#define DEFAULT_LOG_FILE        _T("wintab32.txt")
+#define DEFAULT_LOG_FILE        _T("Z:\\wintab32.txt")
 #define DEFAULT_WINTAB_DLL      _T("C:\\WINDOWS\\WINTAB32.DLL")
 
 static BOOL     initialised     = FALSE;
 
-static BOOL     logging = FALSE;
+static BOOL     logging = TRUE;
+static BOOL     consoleOutput = FALSE;
 static BOOL     debug           = TRUE;
 static BOOL     useEmulation    = TRUE;
 static LPTSTR   logFile         = NULL;
@@ -94,6 +96,540 @@ static WTMGRDEFCONTEXTEX origWTMgrDefContextEx = NULL;
 //this function is needed to load resources from original wintab32.dll
 #define GETPROCADDRESS(type, func) \
 	orig##func = (type)GetProcAddress(hOrigWintab, #func);
+
+
+//
+//#define IND(D){D,#D},
+//#define CAT(C){C, { {0,#C},
+//#define END }},
+
+
+//std::map <int, std::map<int, std::string>> wCategories = {
+//	{ WTI_INTERFACE, { { 0, "WTI_INTERFACE" }, } },
+//	{ WTI_STATUS, { { 0, "WTI_STATUS" }, } },
+//};
+
+//nested std::map not workz in 64bit build, so here is a dirty hackz
+#define CAT(C)				\
+case C:						\
+	switch (wIndex){		\
+	case 0:					\
+		return #C;			\
+		break;
+
+#define IND(D)				\
+	case D:					\
+		return #D;			\
+		break;
+
+#define END					\
+	default:				\
+		return "NO_IDEA";	\
+		break;				\
+	}
+
+#define CATCONTEXT			\
+case WTI_DEFCONTEXT:		\
+case WTI_DEFSYSCTX:			\
+case WTI_DDCTXS:			\
+case WTI_DDCTX_1:			\
+case WTI_DDCTX_2:			\
+case WTI_DSCTXS:			\
+	switch (wIndex){		\
+	case 0:					\
+		switch (wCategory){	\
+			IND(WTI_DEFCONTEXT)			\
+			IND(WTI_DEFSYSCTX)			\
+			IND(WTI_DDCTXS)				\
+			IND(WTI_DDCTX_1)			\
+			IND(WTI_DDCTX_2)			\
+			IND(WTI_DSCTXS)				\
+		}					\
+		break;
+
+
+	//itoa(wCategory,wCategoryChar,10);			
+	//itoa(wIndex,wIndexChar,10);	
+
+
+static const char* category_string(int wCategory, int wIndex){
+	char wCategoryChar[33];
+	char wIndexChar[33];
+	switch (wCategory){
+		CAT(WTI_INTERFACE)
+			IND(IFC_WINTABID)
+			IND(IFC_SPECVERSION)
+			IND(IFC_IMPLVERSION)
+			IND(IFC_NDEVICES)
+			IND(IFC_NCURSORS)
+			IND(IFC_NCONTEXTS)
+			IND(IFC_CTXOPTIONS)
+			IND(IFC_CTXSAVESIZE)
+			IND(IFC_NEXTENSIONS)
+			IND(IFC_NMANAGERS)
+			//IND(IFC_MAX)
+		END
+		CAT(WTI_STATUS)
+			IND(IFC_WINTABID)
+			IND(IFC_SPECVERSION)
+			IND(IFC_IMPLVERSION)
+			IND(IFC_NDEVICES)
+			IND(IFC_NCURSORS)
+			IND(IFC_NCONTEXTS)
+			IND(IFC_CTXOPTIONS)
+			IND(IFC_CTXSAVESIZE)
+			IND(IFC_NEXTENSIONS)
+			IND(IFC_NMANAGERS)
+			//DEF(IFC_MAX)
+		END
+		CAT(WTI_VIRTUAL_DEVICE)
+			IND(DVC_X)
+			IND(DVC_Y)
+			IND(DVC_Z)
+		END
+		CAT(WTI_DEVICES)
+			IND(DVC_NAME)
+			IND(DVC_HARDWARE)
+			IND(DVC_NCSRTYPES)
+			IND(DVC_FIRSTCSR)
+			IND(DVC_PKTRATE)
+			IND(DVC_PKTDATA)
+			IND(DVC_PKTMODE)
+			IND(DVC_CSRDATA)
+			IND(DVC_XMARGIN)
+			IND(DVC_YMARGIN)
+			IND(DVC_ZMARGIN)
+			IND(DVC_X)
+			IND(DVC_Y)
+			IND(DVC_Z)
+			IND(DVC_NPRESSURE)
+			IND(DVC_TPRESSURE)
+			IND(DVC_ORIENTATION)
+			IND(DVC_ROTATION)
+			IND(DVC_PNPID)
+			//IND(DVC_MAX)
+		END
+		CAT(CSR_NAME_PUCK)
+			IND(CSR_NAME)
+			IND(CSR_ACTIVE)
+			IND(CSR_PKTDATA)
+			IND(CSR_BUTTONS)
+			IND(CSR_BUTTONBITS)
+			IND(CSR_BTNNAMES)
+			IND(CSR_BUTTONMAP)
+			IND(CSR_SYSBTNMAP)
+			IND(CSR_NPBUTTON)
+			IND(CSR_NPBTNMARKS)
+			IND(CSR_NPRESPONSE)
+			IND(CSR_TPBUTTON)
+			IND(CSR_TPBTNMARKS)
+			IND(CSR_TPRESPONSE)
+			IND(CSR_PHYSID)
+			IND(CSR_MODE)
+			IND(CSR_MINPKTDATA)
+			IND(CSR_MINBUTTONS)
+			IND(CSR_CAPABILITIES)
+			IND(CSR_TYPE)
+			//IND(CSR_MAX)
+		END
+		CAT(CSR_NAME_PRESSURE_STYLUS)
+			IND(CSR_NAME)
+			IND(CSR_ACTIVE)
+			IND(CSR_PKTDATA)
+			IND(CSR_BUTTONS)
+			IND(CSR_BUTTONBITS)
+			IND(CSR_BTNNAMES)
+			IND(CSR_BUTTONMAP)
+			IND(CSR_SYSBTNMAP)
+			IND(CSR_NPBUTTON)
+			IND(CSR_NPBTNMARKS)
+			IND(CSR_NPRESPONSE)
+			IND(CSR_TPBUTTON)
+			IND(CSR_TPBTNMARKS)
+			IND(CSR_TPRESPONSE)
+			IND(CSR_PHYSID)
+			IND(CSR_MODE)
+			IND(CSR_MINPKTDATA)
+			IND(CSR_MINBUTTONS)
+			IND(CSR_CAPABILITIES)
+			IND(CSR_TYPE)
+			//IND(CSR_MAX)
+		END
+		CAT(CSR_NAME_ERASER)
+			IND(CSR_NAME)
+			IND(CSR_ACTIVE)
+			IND(CSR_PKTDATA)
+			IND(CSR_BUTTONS)
+			IND(CSR_BUTTONBITS)
+			IND(CSR_BTNNAMES)
+			IND(CSR_BUTTONMAP)
+			IND(CSR_SYSBTNMAP)
+			IND(CSR_NPBUTTON)
+			IND(CSR_NPBTNMARKS)
+			IND(CSR_NPRESPONSE)
+			IND(CSR_TPBUTTON)
+			IND(CSR_TPBTNMARKS)
+			IND(CSR_TPRESPONSE)
+			IND(CSR_PHYSID)
+			IND(CSR_MODE)
+			IND(CSR_MINPKTDATA)
+			IND(CSR_MINBUTTONS)
+			IND(CSR_CAPABILITIES)
+			IND(CSR_TYPE)
+			//IND(CSR_MAX)
+		END
+		CAT(WTI_EXTENSIONS)
+			IND(EXT_NAME)
+			IND(EXT_TAG)
+			IND(EXT_MASK)
+			IND(EXT_SIZE)
+			IND(EXT_AXES)
+			IND(EXT_DEFAULT)
+			IND(EXT_DEFCONTEXT)
+			IND(EXT_DEFSYSCTX)
+			IND(EXT_CURSORS)
+			IND(EXT_DEVICES)
+			//IND(EXT_MAX)
+		END
+		CATCONTEXT
+			IND(CTX_NAME)
+			IND(CTX_OPTIONS)
+			IND(CTX_STATUS)
+			IND(CTX_LOCKS)
+			IND(CTX_MSGBASE)
+			IND(CTX_DEVICE)
+			IND(CTX_PKTRATE)
+			IND(CTX_PKTDATA)
+			IND(CTX_PKTMODE)
+			IND(CTX_MOVEMASK)
+			IND(CTX_BTNDNMASK)
+			IND(CTX_BTNUPMASK)
+			IND(CTX_INORGX)
+			IND(CTX_INORGY)
+			IND(CTX_INORGZ)
+			IND(CTX_INEXTX)
+			IND(CTX_INEXTY)
+			IND(CTX_INEXTZ)
+			IND(CTX_OUTORGX)
+			IND(CTX_OUTORGY)
+			IND(CTX_OUTORGZ)
+			IND(CTX_OUTEXTX)
+			IND(CTX_OUTEXTY)
+			IND(CTX_OUTEXTZ)
+			IND(CTX_SENSX)
+			IND(CTX_SENSY)
+			IND(CTX_SENSZ)
+			IND(CTX_SYSMODE)
+			IND(CTX_SYSORGX)
+			IND(CTX_SYSORGY)
+			IND(CTX_SYSEXTX)
+			IND(CTX_SYSEXTY)
+			IND(CTX_SYSSENSX)
+			IND(CTX_SYSSENSY)
+			//IND(CTX_MAX)
+		END
+	case 0:
+		return "ZERO";
+		break;
+	default:
+		return "NO_IDEA";
+		break;
+	}
+}
+
+//std::map <int, std::map<int, const char*>> wCategories = {
+//	{ WTI_INTERFACE, { { 0, "WTI_INTERFACE" }, } },
+//	{ WTI_STATUS, { { 0, "WTI_STATUS" }, } },
+//};
+////more verbose output to log
+//std::map <int, std::map<int, const char*>> wCategories = {
+
+	
+
+//	CAT(WTI_INTERFACE)
+//		IND(IFC_WINTABID)
+//		IND(IFC_SPECVERSION)
+//		IND(IFC_IMPLVERSION)
+//		IND(IFC_NDEVICES)
+//		IND(IFC_NCURSORS)
+//		IND(IFC_NCONTEXTS)
+//		IND(IFC_CTXOPTIONS)
+//		IND(IFC_CTXSAVESIZE)
+//		IND(IFC_NEXTENSIONS)
+//		IND(IFC_NMANAGERS)
+//		IND(IFC_MAX)
+//	END
+//	CAT(WTI_STATUS)
+//		IND(IFC_WINTABID)
+//		IND(IFC_SPECVERSION)
+//		IND(IFC_IMPLVERSION)
+//		IND(IFC_NDEVICES)
+//		IND(IFC_NCURSORS)
+//		IND(IFC_NCONTEXTS)
+//		IND(IFC_CTXOPTIONS)
+//		IND(IFC_CTXSAVESIZE)
+//		IND(IFC_NEXTENSIONS)
+//		IND(IFC_NMANAGERS)
+//		//DEF(IFC_MAX)
+//	END
+//	CAT(WTI_DEFCONTEXT)
+//		IND(CTX_NAME)
+//		IND(CTX_OPTIONS)
+//		IND(CTX_STATUS)
+//		IND(CTX_LOCKS)
+//		IND(CTX_MSGBASE)
+//		IND(CTX_DEVICE)
+//		IND(CTX_PKTRATE)
+//		IND(CTX_PKTDATA)
+//		IND(CTX_PKTMODE)
+//		IND(CTX_MOVEMASK)
+//		IND(CTX_BTNDNMASK)
+//		IND(CTX_BTNUPMASK)
+//		IND(CTX_INORGX)
+//		IND(CTX_INORGY)
+//		IND(CTX_INORGZ)
+//		IND(CTX_INEXTX)
+//		IND(CTX_INEXTY)
+//		IND(CTX_INEXTZ)
+//		IND(CTX_OUTORGX)
+//		IND(CTX_OUTORGY)
+//		IND(CTX_OUTORGZ)
+//		IND(CTX_OUTEXTX)
+//		IND(CTX_OUTEXTY)
+//		IND(CTX_OUTEXTZ)
+//		IND(CTX_SENSX)
+//		IND(CTX_SENSY)
+//		IND(CTX_SENSZ)
+//		IND(CTX_SYSMODE)
+//		IND(CTX_SYSORGX)
+//		IND(CTX_SYSORGY)
+//		IND(CTX_SYSEXTX)
+//		IND(CTX_SYSEXTY)
+//		IND(CTX_SYSSENSX)
+//		IND(CTX_SYSSENSY)
+//		//IND(CTX_MAX)
+//	END
+//	CAT(WTI_DEFSYSCTX)
+//		IND(CTX_NAME)
+//		IND(CTX_OPTIONS)
+//		IND(CTX_STATUS)
+//		IND(CTX_LOCKS)
+//		IND(CTX_MSGBASE)
+//		IND(CTX_DEVICE)
+//		IND(CTX_PKTRATE)
+//		IND(CTX_PKTDATA)
+//		IND(CTX_PKTMODE)
+//		IND(CTX_MOVEMASK)
+//		IND(CTX_BTNDNMASK)
+//		IND(CTX_BTNUPMASK)
+//		IND(CTX_INORGX)
+//		IND(CTX_INORGY)
+//		IND(CTX_INORGZ)
+//		IND(CTX_INEXTX)
+//		IND(CTX_INEXTY)
+//		IND(CTX_INEXTZ)
+//		IND(CTX_OUTORGX)
+//		IND(CTX_OUTORGY)
+//		IND(CTX_OUTORGZ)
+//		IND(CTX_OUTEXTX)
+//		IND(CTX_OUTEXTY)
+//		IND(CTX_OUTEXTZ)
+//		IND(CTX_SENSX)
+//		IND(CTX_SENSY)
+//		IND(CTX_SENSZ)
+//		IND(CTX_SYSMODE)
+//		IND(CTX_SYSORGX)
+//		IND(CTX_SYSORGY)
+//		IND(CTX_SYSEXTX)
+//		IND(CTX_SYSEXTY)
+//		IND(CTX_SYSSENSX)
+//		IND(CTX_SYSSENSY)
+//		//IND(CTX_MAX)
+//	END
+//	CAT(WTI_DEVICES)
+//		IND(DVC_NAME)
+//		IND(DVC_HARDWARE)
+//		IND(DVC_NCSRTYPES)
+//		IND(DVC_FIRSTCSR)
+//		IND(DVC_PKTRATE)
+//		IND(DVC_PKTDATA)
+//		IND(DVC_PKTMODE)
+//		IND(DVC_CSRDATA)
+//		IND(DVC_XMARGIN)
+//		IND(DVC_YMARGIN)
+//		IND(DVC_ZMARGIN)
+//		IND(DVC_X)
+//		IND(DVC_Y)
+//		IND(DVC_Z)
+//		IND(DVC_NPRESSURE)
+//		IND(DVC_TPRESSURE)
+//		IND(DVC_ORIENTATION)
+//		IND(DVC_ROTATION)
+//		IND(DVC_PNPID)
+//		//IND(DVC_MAX)
+//	END
+//	CAT(CSR_NAME_PUCK)
+//		IND(CSR_NAME)
+//		IND(CSR_ACTIVE)
+//		IND(CSR_PKTDATA)
+//		IND(CSR_BUTTONS)
+//		IND(CSR_BUTTONBITS)
+//		IND(CSR_BTNNAMES)
+//		IND(CSR_BUTTONMAP)
+//		IND(CSR_SYSBTNMAP)
+//		IND(CSR_NPBUTTON)
+//		IND(CSR_NPBTNMARKS)
+//		IND(CSR_NPRESPONSE)
+//		IND(CSR_TPBUTTON)
+//		IND(CSR_TPBTNMARKS)
+//		IND(CSR_TPRESPONSE)
+//		IND(CSR_PHYSID)
+//		IND(CSR_MODE)
+//		IND(CSR_MINPKTDATA)
+//		IND(CSR_MINBUTTONS)
+//		IND(CSR_CAPABILITIES)
+//		IND(CSR_TYPE)
+//		//IND(CSR_MAX)
+//	END
+//	CAT(CSR_NAME_PRESSURE_STYLUS)
+//		IND(CSR_NAME)
+//		IND(CSR_ACTIVE)
+//		IND(CSR_PKTDATA)
+//		IND(CSR_BUTTONS)
+//		IND(CSR_BUTTONBITS)
+//		IND(CSR_BTNNAMES)
+//		IND(CSR_BUTTONMAP)
+//		IND(CSR_SYSBTNMAP)
+//		IND(CSR_NPBUTTON)
+//		IND(CSR_NPBTNMARKS)
+//		IND(CSR_NPRESPONSE)
+//		IND(CSR_TPBUTTON)
+//		IND(CSR_TPBTNMARKS)
+//		IND(CSR_TPRESPONSE)
+//		IND(CSR_PHYSID)
+//		IND(CSR_MODE)
+//		IND(CSR_MINPKTDATA)
+//		IND(CSR_MINBUTTONS)
+//		IND(CSR_CAPABILITIES)
+//		IND(CSR_TYPE)
+//		//IND(CSR_MAX)
+//	END
+//	CAT(CSR_NAME_ERASER)
+//		IND(CSR_NAME)
+//		IND(CSR_ACTIVE)
+//		IND(CSR_PKTDATA)
+//		IND(CSR_BUTTONS)
+//		IND(CSR_BUTTONBITS)
+//		IND(CSR_BTNNAMES)
+//		IND(CSR_BUTTONMAP)
+//		IND(CSR_SYSBTNMAP)
+//		IND(CSR_NPBUTTON)
+//		IND(CSR_NPBTNMARKS)
+//		IND(CSR_NPRESPONSE)
+//		IND(CSR_TPBUTTON)
+//		IND(CSR_TPBTNMARKS)
+//		IND(CSR_TPRESPONSE)
+//		IND(CSR_PHYSID)
+//		IND(CSR_MODE)
+//		IND(CSR_MINPKTDATA)
+//		IND(CSR_MINBUTTONS)
+//		IND(CSR_CAPABILITIES)
+//		IND(CSR_TYPE)
+//		//IND(CSR_MAX)
+//	END
+//	CAT(WTI_EXTENSIONS)
+//		IND(EXT_NAME)
+//		IND(EXT_TAG)
+//		IND(EXT_MASK)
+//		IND(EXT_SIZE)
+//		IND(EXT_AXES)
+//		IND(EXT_DEFAULT)
+//		IND(EXT_DEFCONTEXT)
+//		IND(EXT_DEFSYSCTX)
+//		IND(EXT_CURSORS)
+//		IND(EXT_DEVICES)
+//		//IND(EXT_MAX)
+//	END
+//	CAT(WTI_DDCTXS)
+//		IND(CTX_NAME)
+//		IND(CTX_OPTIONS)
+//		IND(CTX_STATUS)
+//		IND(CTX_LOCKS)
+//		IND(CTX_MSGBASE)
+//		IND(CTX_DEVICE)
+//		IND(CTX_PKTRATE)
+//		IND(CTX_PKTDATA)
+//		IND(CTX_PKTMODE)
+//		IND(CTX_MOVEMASK)
+//		IND(CTX_BTNDNMASK)
+//		IND(CTX_BTNUPMASK)
+//		IND(CTX_INORGX)
+//		IND(CTX_INORGY)
+//		IND(CTX_INORGZ)
+//		IND(CTX_INEXTX)
+//		IND(CTX_INEXTY)
+//		IND(CTX_INEXTZ)
+//		IND(CTX_OUTORGX)
+//		IND(CTX_OUTORGY)
+//		IND(CTX_OUTORGZ)
+//		IND(CTX_OUTEXTX)
+//		IND(CTX_OUTEXTY)
+//		IND(CTX_OUTEXTZ)
+//		IND(CTX_SENSX)
+//		IND(CTX_SENSY)
+//		IND(CTX_SENSZ)
+//		IND(CTX_SYSMODE)
+//		IND(CTX_SYSORGX)
+//		IND(CTX_SYSORGY)
+//		IND(CTX_SYSEXTX)
+//		IND(CTX_SYSEXTY)
+//		IND(CTX_SYSSENSX)
+//		IND(CTX_SYSSENSY)
+//		//IND(CTX_MAX)
+//	END
+//	CAT(WTI_DSCTXS)
+//		IND(CTX_NAME)
+//		IND(CTX_OPTIONS)
+//		IND(CTX_STATUS)
+//		IND(CTX_LOCKS)
+//		IND(CTX_MSGBASE)
+//		IND(CTX_DEVICE)
+//		IND(CTX_PKTRATE)
+//		IND(CTX_PKTDATA)
+//		IND(CTX_PKTMODE)
+//		IND(CTX_MOVEMASK)
+//		IND(CTX_BTNDNMASK)
+//		IND(CTX_BTNUPMASK)
+//		IND(CTX_INORGX)
+//		IND(CTX_INORGY)
+//		IND(CTX_INORGZ)
+//		IND(CTX_INEXTX)
+//		IND(CTX_INEXTY)
+//		IND(CTX_INEXTZ)
+//		IND(CTX_OUTORGX)
+//		IND(CTX_OUTORGY)
+//		IND(CTX_OUTORGZ)
+//		IND(CTX_OUTEXTX)
+//		IND(CTX_OUTEXTY)
+//		IND(CTX_OUTEXTZ)
+//		IND(CTX_SENSX)
+//		IND(CTX_SENSY)
+//		IND(CTX_SENSZ)
+//		IND(CTX_SYSMODE)
+//		IND(CTX_SYSORGX)
+//		IND(CTX_SYSORGY)
+//		IND(CTX_SYSEXTX)
+//		IND(CTX_SYSEXTY)
+//		IND(CTX_SYSSENSX)
+//		IND(CTX_SYSSENSY)
+//		//IND(CTX_MAX)
+//	END
+
+
+
+//};
+
+
 
 //Loads original DLL if we don't need emulation
 static BOOL LoadWintab(TCHAR *path)
@@ -190,13 +726,22 @@ void FlushLog(void)
 //adds entry to a log file
 void LogEntry(char *fmt, ...)
 {
-    va_list ap;
+	char LogEntryMaxCount = 1024;
+	char LogEntryBuffer[1024] = "";
+	va_list ap;
 
-    if (fhLog) {
-        va_start(ap, fmt);
-        vfprintf(fhLog, fmt, ap);
-        va_end(ap);
-    }
+	if (fhLog) {
+		va_start(ap, fmt);
+		if (logging){
+			vfprintf(fhLog, fmt, ap);
+		}
+		if(consoleOutput){
+			//currently doesn't work
+			vsnprintf(LogEntryBuffer, LogEntryMaxCount, fmt, ap);
+			std::cout << LogEntryBuffer;
+		}
+		va_end(ap);
+	}
 }
 
 //logging stuff
@@ -715,8 +1260,7 @@ static void Init(void)
     LoadSettings(&settings);
 
     // let's LOG!
-    //if (logging) logging = 
-        OpenLogFile();
+    OpenLogFile();
     LogEntry(
         "init, logging = %d, debug = %d, useEmulation = %d\n", 
         logging, debug, useEmulation
@@ -738,8 +1282,7 @@ static void Init(void)
 // Referenced nowhere here //FIXME arrange for this to be called?
 static void Shutdown(void)
 {
-    if (logging)
-        LogEntry("shutdown started\n");
+    LogEntry("shutdown started\n");
     
     if (useEmulation) {
         emuShutdown();
@@ -747,8 +1290,7 @@ static void Shutdown(void)
         UnloadWintab();
     }
     
-    if (logging)
-        LogEntry("shutdown finished\n");
+    LogEntry("shutdown finished\n");
     
     if (fhLog) {
         fclose(fhLog);
@@ -769,42 +1311,32 @@ static void Shutdown(void)
 
 //1, identification info, specification and soft version, tablet vendor and model
 //2, capability information, dimensions, resolutions, features, cursor types.
-//3, categories that give defaults for all tablet context attributes.
+//3, categories that give defaults for all tablet Context attributes.
 UINT API WTInfoA(UINT wCategory, UINT nIndex, LPVOID lpOutput)
 {
-	UINT ret = 0;
-    
     Init();
-
-    if (useEmulation) {
+	UINT ret = 0;
+    //if (useEmulation) {
         ret = emuWTInfoA(wCategory, nIndex, lpOutput);
-    } else if (hOrigWintab) {
-        ret = origWTInfoA(wCategory, nIndex, lpOutput);
-    }
-    
-    if (logging) {
-	    LogEntry("WTInfoA(%x, %x, %p) = %d\n", wCategory, nIndex, lpOutput, ret);
-	    LogBytes(lpOutput, ret);
-    }
-
-	return ret; 
+    //} else if (hOrigWintab) {
+    //    ret = origWTInfoA(wCategory, nIndex, lpOutput);
+    //}
+		LogEntry("WinTab Info [ASCII] %d->%d, %s->%s,  %p returned 0x%X\n", wCategory, nIndex, category_string(wCategory, 0), category_string(wCategory, nIndex), lpOutput, ret);
+	   // LogBytes(lpOutput, ret);
+	return ret;
 }
 UINT API WTInfoW(UINT wCategory, UINT nIndex, LPVOID lpOutput)
 {
+	Init();
 	UINT ret = 0;
-    
-    Init();
-    
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTInfoW(wCategory, nIndex, lpOutput);
-    } else if (hOrigWintab) {
-        ret = origWTInfoW(wCategory, nIndex, lpOutput);
-    }
-    if (logging) {
-        LogEntry("WTInfoW(%x, %x, %p) = %d\n", wCategory, nIndex, lpOutput, ret);
-	    LogBytes(lpOutput, ret);
-    }
-
+    //} else if (hOrigWintab) {
+    //    ret = origWTInfoW(wCategory, nIndex, lpOutput);
+    //}
+		LogEntry("WinTab Info [UTF8] %d->%d, %s->%s,  %p returned 0x%X\n", wCategory, nIndex, category_string(wCategory, 0), category_string(wCategory, nIndex), lpOutput, ret);
+	   // LogBytes(lpOutput, ret);
+    //}
 	return ret;
 }
 
@@ -825,12 +1357,10 @@ HCTX API WTOpenA(HWND hWnd, LPLOGCONTEXTA lpLogCtx, BOOL fEnable)
         packetData = lpLogCtx->lcPktData;
         packetMode = lpLogCtx->lcPktMode;
     }
+	LogEntry("WTOpenA(%x, %p, %d) = %x\n", hWnd, lpLogCtx, fEnable, ret);
+	//    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+	//	LogLogContextA(lpLogCtx);
 
-	if (logging) {
-	    LogEntry("WTOpenA(%x, %p, %d) = %x\n", hWnd, lpLogCtx, fEnable, ret);
-	    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-		LogLogContextA(lpLogCtx);
-	}
 
 	return ret;
 }
@@ -852,12 +1382,9 @@ HCTX API WTOpenW(HWND hWnd, LPLOGCONTEXTW lpLogCtx, BOOL fEnable)
         packetMode = lpLogCtx->lcPktMode;
     }
     
-    if (logging) {
-	    LogEntry("WTOpenW(%x, %p, %d) = %x\n", hWnd, lpLogCtx, fEnable, ret);
-	    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-		LogLogContextW(lpLogCtx);
-    }
-
+	LogEntry("WTOpenW(%x, %p, %d) = %x\n", hWnd, lpLogCtx, fEnable, ret);
+	 //   LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+		//LogLogContextW(lpLogCtx);
 	return ret;
 }
 
@@ -867,15 +1394,13 @@ BOOL API WTClose(HCTX hCtx)
     
     Init();
 
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTClose(hCtx);
-    } else if (hOrigWintab) {
-        ret = origWTClose(hCtx);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTClose(hCtx);
+    //}
 
-    if (logging) {
-	    LogEntry("WTClose(%x) = %d\n", hCtx, ret);
-    }
+    LogEntry("WTClose(%x) = %d\n", hCtx, ret);
 
 	return ret;
 }
@@ -886,39 +1411,33 @@ int API WTPacketsGet(HCTX hCtx, int cMaxPkts, LPVOID lpPkt)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTPacketsGet(hCtx, cMaxPkts, lpPkt);
-    } else if (hOrigWintab) {
-        ret = origWTPacketsGet(hCtx, cMaxPkts, lpPkt);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTPacketsGet(hCtx, cMaxPkts, lpPkt);
+    //}
 
-    if (logging) {
-	    LogEntry("WTPacketGet(%x, %d, %p) = %d\n", hCtx, cMaxPkts, lpPkt, ret);
-	    if (ret > 0)
-		    LogBytes(lpPkt, PacketBytes(packetData, packetMode) * ret);
-    }
-	
+    LogEntry("WTPacketGet(%x, %d, %p) = %d\n", hCtx, cMaxPkts, lpPkt, ret);
+	   // if (ret > 0)
+		  //  LogBytes(lpPkt, PacketBytes(packetData, packetMode) * ret);
     return ret;
 }
 
 BOOL API WTPacket(HCTX hCtx, UINT wSerial, LPVOID lpPkt)
 {
 	BOOL ret = FALSE;
-    
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTPacket(hCtx, wSerial, lpPkt);
-    } else if (hOrigWintab) {
-        ret = origWTPacket(hCtx, wSerial, lpPkt);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTPacket(hCtx, wSerial, lpPkt);
+    //}
 
-    if (logging) {
-        LogEntry("WTPacket(%x, %x, %p) = %d\n", hCtx, wSerial, lpPkt, ret);
-        if (ret) {
-            LogBytes(lpPkt, PacketBytes(packetData, packetMode));
-        }
-    }
+    LogEntry("WTPacket(%x, %x, %p) = %d\n", hCtx, wSerial, lpPkt, ret);
+    //    if (ret) {
+    //        LogBytes(lpPkt, PacketBytes(packetData, packetMode));
+    //    }
 
 	return ret;
 }
@@ -926,18 +1445,14 @@ BOOL API WTPacket(HCTX hCtx, UINT wSerial, LPVOID lpPkt)
 BOOL API WTEnable(HCTX hCtx, BOOL fEnable)
 {
 	BOOL ret = FALSE;
-    
     Init();
-    
-    if (useEmulation) {
+    //if (useEmulation) {
 	    ret = emuWTEnable(hCtx, fEnable);
-    } else if (hOrigWintab) {
-	    ret = origWTEnable(hCtx, fEnable);
-    }
+    //} else if (hOrigWintab) {
+	   // ret = origWTEnable(hCtx, fEnable);
+    //}
 
-    if (logging) {
-	    LogEntry("WTEnable(%x, %d) = %d\n", hCtx, fEnable, ret);
-    }
+    LogEntry("WTEnable(%x, %d) = %d\n", hCtx, fEnable, ret);
 
     return ret;
 }
@@ -945,18 +1460,15 @@ BOOL API WTEnable(HCTX hCtx, BOOL fEnable)
 BOOL API WTOverlap(HCTX hCtx, BOOL fToTop)
 {
 	BOOL ret = FALSE;
-    
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTOverlap(hCtx, fToTop);
-    } else if (hOrigWintab) {
-        ret = origWTOverlap(hCtx, fToTop);
-    }
-    
-    if (logging) {
-	    LogEntry("WTOverlap(%x, %d) = %d\n", hCtx, fToTop, ret);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTOverlap(hCtx, fToTop);
+    //}
+    //
+	LogEntry("WTOverlap(%x, %d) = %d\n", hCtx, fToTop, ret);
 
 	return ret;
 }
@@ -964,19 +1476,15 @@ BOOL API WTOverlap(HCTX hCtx, BOOL fToTop)
 BOOL API WTConfig(HCTX hCtx, HWND hWnd)
 {
 	BOOL ret = FALSE;
-    
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTConfig(hCtx, hWnd);
-    } else if (hOrigWintab) {
-        ret = origWTConfig(hCtx, hWnd);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTConfig(hCtx, hWnd);
+    //}
 
-    if (logging) {
-	    LogEntry("WTConfig(%x, %x) = %d\n", hCtx, hWnd, ret);
-    }
-
+    LogEntry("WTConfig(%x, %x) = %d\n", hCtx, hWnd, ret);
 	return ret;
 }
 
@@ -987,11 +1495,11 @@ BOOL API WTGetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTGetA(hCtx, lpLogCtx);
-    } else if (hOrigWintab) {
-        ret = origWTGetA(hCtx, lpLogCtx);
-	}
+ //   } else if (hOrigWintab) {
+ //       ret = origWTGetA(hCtx, lpLogCtx);
+	//}
     
     if (lpLogCtx && ret) {
         // snoop packet mode
@@ -999,11 +1507,9 @@ BOOL API WTGetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
         packetMode = lpLogCtx->lcPktMode;
     }
 
-    if (logging) {
-        LogEntry("WTGetA(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
-        LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-        LogLogContextA(lpLogCtx);
-    }
+    LogEntry("WTGetA(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
+    //    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+    //    LogLogContextA(lpLogCtx);
 
 	return ret;
 }
@@ -1013,11 +1519,11 @@ BOOL API WTGetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTGetW(hCtx, lpLogCtx);
-    } else if (hOrigWintab) {
-        ret = origWTGetW(hCtx, lpLogCtx);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTGetW(hCtx, lpLogCtx);
+    //}
     
     if (lpLogCtx && ret) {
         // snoop packet mode
@@ -1025,11 +1531,9 @@ BOOL API WTGetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
         packetMode = lpLogCtx->lcPktMode;
     }
 
-    if (logging) {
-	    LogEntry("WTGetW(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
-	    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-		LogLogContextW(lpLogCtx);
-    }
+	LogEntry("WTGetW(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
+	 //   LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+		//LogLogContextW(lpLogCtx);
 
 	return ret;
 }
@@ -1041,11 +1545,11 @@ BOOL API WTSetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTSetA(hCtx, lpLogCtx);
-    } else if (hOrigWintab) {
-        ret = origWTSetA(hCtx, lpLogCtx);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTSetA(hCtx, lpLogCtx);
+    //}
     
     if (lpLogCtx && ret) {
         // snoop packet mode
@@ -1053,11 +1557,9 @@ BOOL API WTSetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
         packetMode = lpLogCtx->lcPktMode;
     }
 	
-    if (logging) {
-        LogEntry("WTSetA(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
-	    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-		LogLogContextA(lpLogCtx);
-    }
+	LogEntry("WTSetA(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
+	 //   LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+		//LogLogContextA(lpLogCtx);
 
 	return ret;
 }
@@ -1067,11 +1569,11 @@ BOOL API WTSetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTSetW(hCtx, lpLogCtx);
-    } else if (hOrigWintab) {
-        ret = origWTSetW(hCtx, lpLogCtx);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTSetW(hCtx, lpLogCtx);
+    //}
     
     if (lpLogCtx && ret) {
         // snoop packet mode
@@ -1079,12 +1581,10 @@ BOOL API WTSetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
         packetMode = lpLogCtx->lcPktMode;
     }
 	
-    if (logging) {
-        LogEntry("WTSetW(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
-	    LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-		LogLogContextW(lpLogCtx);
-    }
-	
+	LogEntry("WTSetW(%x, %p) = %d\n", hCtx, lpLogCtx, ret);
+	 //   LogBytes(lpLogCtx, sizeof(*lpLogCtx));
+		//LogLogContextW(lpLogCtx);
+
     return ret;
 }
 
@@ -1094,16 +1594,14 @@ BOOL API WTExtGet(HCTX hCtx, UINT wExt, LPVOID lpData)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTExtGet(hCtx, wExt, lpData);
-    } else if (hOrigWintab) {
-        ret = origWTExtGet(hCtx, wExt, lpData);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTExtGet(hCtx, wExt, lpData);
+    //}
 
-    if (logging) {
-        LogEntry("WTExtGet(%x, %x, %p) = %d\n", hCtx, wExt, lpData, ret);
-        //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-    }
+    LogEntry("WTExtGet(%x, %x, %p) = %d\n", hCtx, wExt, lpData, ret);
+    //    //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
 
 	return ret;
 }
@@ -1113,16 +1611,14 @@ BOOL API WTExtSet(HCTX hCtx, UINT wExt, LPVOID lpData)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTExtSet(hCtx, wExt, lpData);
-    } else if (hOrigWintab) {
-        ret = origWTExtSet(hCtx, wExt, lpData);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTExtSet(hCtx, wExt, lpData);
+    //}
 
-    if (logging) {
-	    LogEntry("WTExtSet(%x, %x, %p) = %d\n", hCtx, wExt, lpData, ret);
-	    //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-    }
+    LogEntry("WTExtSet(%x, %x, %p) = %d\n", hCtx, wExt, lpData, ret);
+	   // //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
 
 	return ret;
 }
@@ -1133,16 +1629,14 @@ BOOL API WTSave(HCTX hCtx, LPVOID lpData)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTSave(hCtx, lpData);
-    } else if (hOrigWintab) {
-        ret = origWTSave(hCtx, lpData);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTSave(hCtx, lpData);
+    //}
 
-    if (logging) {
-	    LogEntry("WTSave(%x, %p) = %d\n", hCtx, lpData, ret);
-	    //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-    }
+    LogEntry("WTSave(%x, %p) = %d\n", hCtx, lpData, ret);
+	   // //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
 
 	return ret;
 }
@@ -1152,16 +1646,14 @@ HCTX API WTRestore(HWND hWnd, LPVOID lpSaveInfo, BOOL fEnable)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTRestore(hWnd, lpSaveInfo, fEnable);
-    } else if (hOrigWintab) {
-        ret = origWTRestore(hWnd, lpSaveInfo, fEnable);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTRestore(hWnd, lpSaveInfo, fEnable);
+    //}
 
-    if (logging) {
-	    LogEntry("WTRestore(%x, %p, %d) = %x\n", hWnd, lpSaveInfo, fEnable, ret);
-	    //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
-    }
+    LogEntry("WTRestore(%x, %p, %d) = %x\n", hWnd, lpSaveInfo, fEnable, ret);
+	   // //LogBytes(lpLogCtx, sizeof(*lpLogCtx));
 
 	return ret;
 }
@@ -1172,17 +1664,15 @@ int API WTPacketsPeek(HCTX hWnd, int cMaxPkt, LPVOID lpPkts)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTPacketsPeek(hWnd, cMaxPkt, lpPkts);
-    } else if (hOrigWintab) {
-        ret = origWTPacketsPeek(hWnd, cMaxPkt, lpPkts);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTPacketsPeek(hWnd, cMaxPkt, lpPkts);
+    //}
 
-    if (logging) {
-        LogEntry("WTPacketsPeek(%x, %d, %p) = %d\n", hWnd, cMaxPkt, lpPkts, ret);
-        if (ret > 0)
-            LogBytes(lpPkts, PacketBytes(packetData, packetMode) * ret);
-    }
+    LogEntry("WTPacketsPeek(%x, %d, %p) = %d\n", hWnd, cMaxPkt, lpPkts, ret);
+    //    if (ret > 0)
+    //        LogBytes(lpPkts, PacketBytes(packetData, packetMode) * ret);
 
 	return ret;
 }
@@ -1193,17 +1683,15 @@ int API WTDataGet(HCTX hCtx, UINT wBegin, UINT wEnd, int cMaxPkts, LPVOID lpPkts
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTDataGet(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
-    } else if (hOrigWintab) {
-        ret = origWTDataGet(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
-    }
-    
-    if (logging) {
-        LogEntry("WTDataGet(%x, %x, %x, %d, %p, %p) = %d\n", hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts, ret);
-        if (lpNPkts)
-            LogBytes(lpPkts, PacketBytes(packetData, packetMode) * (*lpNPkts));
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTDataGet(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
+    //}
+    //
+	LogEntry("WTDataGet(%x, %x, %x, %d, %p, %p) = %d\n", hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts, ret);
+    //    if (lpNPkts)
+    //        LogBytes(lpPkts, PacketBytes(packetData, packetMode) * (*lpNPkts));
 
 	return ret;
 }
@@ -1213,18 +1701,16 @@ int API WTDataPeek(HCTX hCtx, UINT wBegin, UINT wEnd, int cMaxPkts, LPVOID lpPkt
     
     Init();
     
-    if (useEmulation) {
+   // if (useEmulation) {
         ret = emuWTDataPeek(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
-    } else if (hOrigWintab) {
-        ret = origWTDataPeek(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTDataPeek(hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts);
+    //}
 
-    if (logging) {
-        LogEntry("WTDataPeek(%x, %x, %x, %d, %p, %p) = %d\n", hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts, ret);
-        if (lpNPkts)
-            LogBytes(lpPkts, PacketBytes(packetData, packetMode) * (*lpNPkts));
-    }
-
+    LogEntry("WTDataPeek(%x, %x, %x, %d, %p, %p) = %d\n", hCtx, wBegin, wEnd, cMaxPkts, lpPkts, lpNPkts, ret);
+    //    if (lpNPkts)
+    //        LogBytes(lpPkts, PacketBytes(packetData, packetMode) * (*lpNPkts));
+    //}
 	return ret;
 }
 
@@ -1234,16 +1720,14 @@ int API WTQueueSizeGet(HCTX hCtx)
     
     Init();
     
-    if (useEmulation) {
+   // if (useEmulation) {
         ret = emuWTQueueSizeGet(hCtx);
-    } else if (hOrigWintab) {
-        ret = origWTQueueSizeGet(hCtx);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTQueueSizeGet(hCtx);
+    //}
 
-    if (logging) {
-	    LogEntry("WTQueueSizeGet(%x) = %d\n", hCtx, ret);
-    }
 
+	LogEntry("WTQueueSizeGet(%x) = %d\n", hCtx, ret);
 	return ret;
 }
 BOOL API WTQueueSizeSet(HCTX hCtx, int nPkts)
@@ -1252,15 +1736,12 @@ BOOL API WTQueueSizeSet(HCTX hCtx, int nPkts)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTQueueSizeSet(hCtx, nPkts);
-    } else if (hOrigWintab) {
-        ret = origWTQueueSizeSet(hCtx, nPkts);
-    }
-    
-    if (logging) {
-	    LogEntry("WTQueueSizeSet(%x, %d) = %d\n", hCtx, nPkts, ret);
-    }
+    //} else if (hOrigWintab) {
+    //    ret = origWTQueueSizeSet(hCtx, nPkts);
+    //}
+    LogEntry("WTQueueSizeSet(%x, %d) = %d\n", hCtx, nPkts, ret);
 
 	return ret;
 }
@@ -1271,16 +1752,13 @@ HMGR API WTMgrOpen(HWND hWnd, UINT wMsgBase)
     
     Init();
     
-    if (useEmulation) {
+    //if (useEmulation) {
         ret = emuWTMgrOpen(hWnd, wMsgBase);
-    } else if (hOrigWintab) {
-        ret = origWTMgrOpen(hWnd, wMsgBase);
-    }
-	
-    if (logging) {
-        LogEntry("WTMgrOpen(%x, %x) = %x\n", hWnd, wMsgBase, ret);
-	}
+ //   } else if (hOrigWintab) {
+ //       ret = origWTMgrOpen(hWnd, wMsgBase);
+ //   }
 
+	LogEntry("WTMgrOpen(%x, %x) = %x\n", hWnd, wMsgBase, ret);
     return ret;
 }
 BOOL API WTMgrClose(HMGR hMgr)
@@ -1289,16 +1767,13 @@ BOOL API WTMgrClose(HMGR hMgr)
     
     Init();
     
-    if (useEmulation) {
+   // if (useEmulation) {
 	    ret = emuWTMgrClose(hMgr);
-    } else if (hOrigWintab) {
-	    ret = origWTMgrClose(hMgr);
-    }
+    //} else if (hOrigWintab) {
+	   // ret = origWTMgrClose(hMgr);
+    //}
 	
-    if (logging) {
-        LogEntry("WTMgrClose(%x) = %d\n", hMgr, ret);
-    }
-
+    LogEntry("WTMgrClose(%x) = %d\n", hMgr, ret);
 	return ret;
 }
 
@@ -1306,152 +1781,133 @@ BOOL API WTMgrClose(HMGR hMgr)
 BOOL API WTMgrContextEnum(HMGR hMgr, WTENUMPROC lpEnumFunc, LPARAM lParam)
 {
     Init();
-    if (logging)
-        LogEntry("Unsupported WTMgrContextEnum(%x, %p, %x)\n", hMgr, lpEnumFunc, lParam);
+    LogEntry("Unsupported WTMgrContextEnum(%x, %p, %x)\n", hMgr, lpEnumFunc, lParam);
 	return FALSE;
 }
     // XXX: unsupported
 HWND API WTMgrContextOwner(HMGR hMgr, HCTX hCtx)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrContextOwner(%x, %x)\n", hMgr, hCtx);
+	LogEntry("Unsupported WTMgrContextOwner(%x, %x)\n", hMgr, hCtx);
 	return NULL;
 }
     // XXX: unsupported
 HCTX API WTMgrDefContext(HMGR hMgr, BOOL fSystem)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrDefContext(%x, %d)\n", hMgr, fSystem);
+	LogEntry("Unsupported WTMgrDefContext(%x, %d)\n", hMgr, fSystem);
 	return NULL;
 }
     // XXX: unsupported
 HCTX API WTMgrDefContextEx(HMGR hMgr, UINT wDevice, BOOL fSystem)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrDefContextEx(%x, %x, %d)\n", hMgr, wDevice, fSystem);
+	LogEntry("Unsupported WTMgrDefContextEx(%x, %x, %d)\n", hMgr, wDevice, fSystem);
 	return NULL;
 }
     // XXX: unsupported
 UINT API WTMgrDeviceConfig(HMGR hMgr, UINT wDevice, HWND hWnd)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrDeviceConfig(%x, %x, %x)\n", hMgr, wDevice, hWnd);
+	LogEntry("Unsupported WTMgrDeviceConfig(%x, %x, %x)\n", hMgr, wDevice, hWnd);
 	return 0;
 }
     // XXX: unsupported
 BOOL API WTMgrExt(HMGR hMgr, UINT wParam1, LPVOID lpParam1)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrExt(%x, %p, %x)\n", hMgr, wParam1, lpParam1);
+	LogEntry("Unsupported WTMgrExt(%x, %p, %x)\n", hMgr, wParam1, lpParam1);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrCsrEnable(HMGR hMgr, UINT wParam1, BOOL fParam1)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrEnable(%x, %x, %d)\n", hMgr, wParam1, fParam1);
+	LogEntry("Unsupported WTMgrCsrEnable(%x, %x, %d)\n", hMgr, wParam1, fParam1);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrCsrButtonMap(HMGR hMgr, UINT wCursor, LPBYTE lpLogBtns, LPBYTE lpSysBtns)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrButtonMap(%x, %x, %p, %x)\n", hMgr, wCursor, lpLogBtns, lpSysBtns);
+	LogEntry("Unsupported WTMgrCsrButtonMap(%x, %x, %p, %x)\n", hMgr, wCursor, lpLogBtns, lpSysBtns);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrCsrPressureBtnMarks(HMGR hMgr, UINT wCsr, DWORD lpNMarks, DWORD lpTMarks)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrPressureBtnMarks(%x, %x, %x, %x)\n", hMgr, wCsr, lpNMarks, lpTMarks);
+	LogEntry("Unsupported WTMgrCsrPressureBtnMarks(%x, %x, %x, %x)\n", hMgr, wCsr, lpNMarks, lpTMarks);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrCsrPressureResponse(HMGR hMgr, UINT wCsr, UINT FAR *lpNResp, UINT FAR *lpTResp)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrPressureResponse(%x, %x, %p, %p)\n", hMgr, wCsr, lpNResp, lpTResp);
+	LogEntry("Unsupported WTMgrCsrPressureResponse(%x, %x, %p, %p)\n", hMgr, wCsr, lpNResp, lpTResp);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrCsrExt(HMGR hMgr, UINT wCsr, UINT wParam1, LPVOID lpParam1)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrExt(%x, %x, %x, %p)\n", hMgr, wCsr, wParam1, lpParam1);
+	LogEntry("Unsupported WTMgrCsrExt(%x, %x, %x, %p)\n", hMgr, wCsr, wParam1, lpParam1);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTQueuePacketsEx(HCTX hCtx, UINT FAR *lpParam1, UINT FAR *lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTQueuePacketsEx(%x, %p, %p)\n", hCtx, lpParam1, lpParam2);
+	LogEntry("Unsupported WTQueuePacketsEx(%x, %p, %p)\n", hCtx, lpParam1, lpParam2);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrConfigReplaceExA(HMGR hMgr, BOOL fParam1, LPSTR lpParam1, LPSTR lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrConfigReplaceExA(%x, %d, %p, %p)\n", hMgr, fParam1, lpParam1, lpParam2);
+	LogEntry("Unsupported WTMgrConfigReplaceExA(%x, %d, %p, %p)\n", hMgr, fParam1, lpParam1, lpParam2);
 	return FALSE;
 }
     // XXX: unsupported
 BOOL API WTMgrConfigReplaceExW(HMGR hMgr, BOOL fParam1, LPWSTR lpParam1, LPSTR lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrConfigReplaceExW(%x, %d, %p, %p)\n", hMgr, fParam1, lpParam1, lpParam2);
+	LogEntry("Unsupported WTMgrConfigReplaceExW(%x, %d, %p, %p)\n", hMgr, fParam1, lpParam1, lpParam2);
 	return FALSE;
 }
 // XXX: unsupported
 HWTHOOK API WTMgrPacketHookExA(HMGR hMgr, int cParam1, LPSTR lpParam1, LPSTR lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrPacketHookExA(%x, %d, %p, %p)\n", hMgr, cParam1, lpParam1, lpParam2);
+	LogEntry("Unsupported WTMgrPacketHookExA(%x, %d, %p, %p)\n", hMgr, cParam1, lpParam1, lpParam2);
 	return NULL;
 }
 // XXX: unsupported
 HWTHOOK API WTMgrPacketHookExW(HMGR hMgr, int cParam1, LPWSTR lpParam1, LPSTR lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrPacketHookExW(%x, %d, %p, %p)\n", hMgr, cParam1, lpParam1, lpParam2);
+	LogEntry("Unsupported WTMgrPacketHookExW(%x, %d, %p, %p)\n", hMgr, cParam1, lpParam1, lpParam2);
 	return NULL;
 }
 // XXX: unsupported
 BOOL API WTMgrPacketUnhook(HWTHOOK hWTHook)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrPacketUnhook(%x)\n", hWTHook);
+	LogEntry("Unsupported WTMgrPacketUnhook(%x)\n", hWTHook);
 	return FALSE;
 }
 // XXX: unsupported
 LRESULT API WTMgrPacketHookNext(HWTHOOK hWTHook, int cParam1, WPARAM wParam1, LPARAM lpParam1)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrPacketHookNext(%x, %d, %x, %x)\n", hWTHook, cParam1, wParam1, lpParam1);
+	LogEntry("Unsupported WTMgrPacketHookNext(%x, %d, %x, %x)\n", hWTHook, cParam1, wParam1, lpParam1);
 	return NULL;
 }
 // XXX: unsupported
 BOOL API WTMgrCsrPressureBtnMarksEx(HMGR hMgr, UINT wCsr, UINT FAR *lpParam1, UINT FAR *lpParam2)
 {
     Init();
-    if (logging)
-	    LogEntry("Unsupported WTMgrCsrPressureBtnMarksEx(%x, %x, %p, %p)\n", hMgr, wCsr, lpParam1, lpParam2);
+	LogEntry("Unsupported WTMgrCsrPressureBtnMarksEx(%x, %x, %p, %p)\n", hMgr, wCsr, lpParam1, lpParam2);
 	return FALSE;
 }
 

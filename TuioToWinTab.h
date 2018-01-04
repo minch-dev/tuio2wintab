@@ -41,12 +41,22 @@ of merchantability or fitness for any particular purpose.
 
 
 #include "wintab.h"
+#define CSR_NAME_PUCK				WTI_CURSORS+0
+#define CSR_NAME_PRESSURE_STYLUS	WTI_CURSORS+1
+#define CSR_NAME_ERASER				WTI_CURSORS+2
+#define WTI_DDCTX_1					WTI_DDCTXS+1
+#define WTI_DDCTX_2					WTI_DDCTXS+2
+#define MAX_CONTEXTS 32
+#define WTI_VIRTUAL_DEVICE 99
+
 
 #include "TuioListener.h"
 #include "TuioClient.h"
 #include "UdpReceiver.h"
 #include "TcpReceiver.h"
 #include <math.h>
+#include <vector>
+#include <algorithm>
 
 using namespace TUIO;
 
@@ -116,5 +126,6 @@ BOOL emuWTQueueSizeSet(HCTX hCtx, int nPkts);
 HMGR emuWTMgrOpen(HWND hWnd, UINT wMsgBase);
 BOOL emuWTMgrClose(HMGR hMgr);
 
-
+void setupReceiver(void);
+static BOOL handleTuioMessage(TuioCursor *tcur);
 #endif /* INCLUDED_TuioToWinTab_H */

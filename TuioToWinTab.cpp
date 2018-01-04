@@ -65,7 +65,7 @@ of merchantability or fitness for any particular purpose.
 #define MOUSE_POINTER_ID 1
 
 
-static BOOL logging = FALSE;
+static BOOL logging = TRUE;
 static BOOL debug = TRUE;
 
 typedef struct _packet_data_t {
@@ -104,84 +104,21 @@ static UINT screen_width = 0;
 
 static LOGCONTEXTA default_context;
 static LPLOGCONTEXTA context = NULL;
-//
+
+std::vector<LPLOGCONTEXTA> ctx;
+
+//static LPLOGCONTEXTA contexts[MAX_CONTEXTS];
 
 
 
-static std::string _address("localhost");
-static bool _udp = true;
-static int _port = 3333;
-
-
-
-void TuioToWinTab::addTuioObject(TuioObject *tobj) {
-    LogEntry( "add obj %d (%d/%d) %f %f %f\n",tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle());
-    std::cout << "add obj " << tobj->getSymbolID() << " (" << tobj->getSessionID() << "/" << tobj->getTuioSourceID() << ") " << tobj->getX() << " " << tobj->getY() << " " << tobj->getAngle() << std::endl;
-
+// check if our vector has needed context
+BOOL ctxHas(HCTX hCtx){
+	context = (LPLOGCONTEXTA)hCtx;
+	return hCtx && std::find(ctx.begin(), ctx.end(), context) != ctx.end();
 }
-
-void TuioToWinTab::updateTuioObject(TuioObject *tobj) {
-    LogEntry( "set obj %d (%d/%d) %f %f %f   %f %f %f %f \n",tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle(),tobj->getMotionSpeed(), tobj->getRotationSpeed(), tobj->getMotionAccel(), tobj->getRotationAccel());
-    std::cout << "set obj " << tobj->getSymbolID() << " (" << tobj->getSessionID() << "/" << tobj->getTuioSourceID() << ") " << tobj->getX() << " " << tobj->getY() << " " << tobj->getAngle() << " " << tobj->getMotionSpeed() << " " << tobj->getRotationSpeed() << " " << tobj->getMotionAccel() << " " << tobj->getRotationAccel() << std::endl;
-}
-
-void TuioToWinTab::removeTuioObject(TuioObject *tobj) {
-    LogEntry( "del obj %d (%d/%d) \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID() );
-    std::cout << "del obj " << tobj->getSymbolID() << " (" << tobj->getSessionID() << "/" << tobj->getTuioSourceID() << ")" << std::endl;
-
-}
-
-void TuioToWinTab::addTuioCursor(TuioCursor *tcur) {
-    LogEntry( "add cur %d (%d/%d) %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY() );
-    std::cout << "add cur " << tcur->getCursorID() << " (" << tcur->getSessionID() << "/" << tcur->getTuioSourceID() << ") " << tcur->getX() << " " << tcur->getY() << std::endl;
-
-}
-
-void TuioToWinTab::updateTuioCursor(TuioCursor *tcur) {
-    LogEntry( "set cur %d (%d/%d) %f %f    %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY(), tcur->getMotionSpeed(), tcur->getMotionAccel() );
-    std::cout << "set cur " << tcur->getCursorID() << " (" << tcur->getSessionID() << "/" << tcur->getTuioSourceID() << ") " << tcur->getX() << " " << tcur->getY() << " " << tcur->getMotionSpeed() << " " << tcur->getMotionAccel() << " " << std::endl;
-
-}
-
-void TuioToWinTab::removeTuioCursor(TuioCursor *tcur) {
-    LogEntry( "del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID() );
-    std::cout << "del cur " << tcur->getCursorID() << " (" << tcur->getSessionID() << "/" << tcur->getTuioSourceID() << ")" << std::endl;
-
-}
-
-void TuioToWinTab::addTuioBlob(TuioBlob *tblb) {
-    LogEntry( "add blb %d (%d/%d) %f %f %f   %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea() );
-    std::cout << "add blb " << tblb->getBlobID() << " (" << tblb->getSessionID() << "/" << tblb->getTuioSourceID() << ") " << tblb->getX() << " " << tblb->getY() << " " << tblb->getAngle() << " " << tblb->getWidth() << " " << tblb->getHeight() << " " << tblb->getArea() << std::endl;
-
-}
-
-void TuioToWinTab::updateTuioBlob(TuioBlob *tblb) {
-    LogEntry( "set blb %d (%d/%d) %f %f %f   %f %f %f   %f %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea(), tblb->getMotionSpeed(), tblb->getRotationSpeed(), tblb->getMotionAccel(), tblb->getRotationAccel() );
-    std::cout << "set blb " << tblb->getBlobID() << " (" << tblb->getSessionID() << "/" << tblb->getTuioSourceID() << ") " << tblb->getX() << " " << tblb->getY() << " " << tblb->getAngle() << " " << tblb->getWidth() << " " << tblb->getHeight() << " " << tblb->getArea() << " " << tblb->getMotionSpeed() << " " << tblb->getRotationSpeed() << " " << tblb->getMotionAccel() << " " << tblb->getRotationAccel() << std::endl;
-
-}
-
-void TuioToWinTab::removeTuioBlob(TuioBlob *tblb) {
-    LogEntry( "del blb %d (%d/%d) \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID() );
-    std::cout << "del blb " << tblb->getBlobID() << " (" << tblb->getSessionID() << "/" << tblb->getTuioSourceID() << ")" << std::endl;
-
-}
-
-void  TuioToWinTab::refresh(TuioTime frameTime) {
-	//std::cout << "refresh " << frameTime.getTotalMilliseconds() << std::endl;
-
-}
-
-
-
-
-
-
-
-
 
 // EX emulation.cpp
-// initialises wintab context (for our emulation purposes?)
+// initialises wintab Context (for our emulation purposes?)
 static void init_context(LOGCONTEXTA *ctx)
 {
     strncpy_s(ctx->lcName, "Windows", LC_NAMELEN);
@@ -226,7 +163,7 @@ static BOOL update_screen_metrics(LOGCONTEXTA *ctx)
     // hey pal, fuck multiple displays lol
     BOOL changed = FALSE;
     // he gets width and height of a default(?) screen
-    // I kinda get it, he assumes, that win8 touch events are pixel based, so he sets context size to the same values, but I can choose any value I want. right?
+    // I kinda get it, he assumes, that win8 touch events are pixel based, so he sets Context size to the same values, but I can choose any value I want. right?
     //  int width = screen_width = GetSystemMetrics(SM_CXSCREEN);
     //  int height = screen_height = GetSystemMetrics(SM_CYSCREEN);
 
@@ -577,12 +514,12 @@ static UINT fill_rotation(LPVOID lpOutput)
 static UINT write_packet(LPVOID lpPtr, packet_data_t *pkt)
 {
     LPBYTE ptr = (LPBYTE)lpPtr;
-    UINT data = context->lcPktData;
-    UINT mode = context->lcPktMode;
+	UINT data = ctx.back()->lcPktData;
+	UINT mode = ctx.back()->lcPktMode;
     UINT n = 0;
 
     if (data & PK_CONTEXT)
-        n += copy_handle((LPVOID)(ptr ? ptr + n : NULL), context);
+		n += copy_handle((LPVOID)(ptr ? ptr + n : NULL), ctx[0]);
     if (data & PK_STATUS)
         n += copy_uint((LPVOID)(ptr ? ptr + n : NULL), 0);
     if (data & PK_TIME)
@@ -730,92 +667,85 @@ static void adjustPressure(packet_data_t *pkt)
 // this is where the HELL begins
 static BOOL handleMessage(UINT32 pointerId, POINTER_INPUT_TYPE pointerType, BOOL leavingWindow, LPMSG msg)
 {
-    const UINT n_buttons = 5;
-    POINTER_PEN_INFO info;
-    packet_data_t pkt;
-    BOOL buttons[n_buttons];
-    BOOL contact = FALSE;
-    BOOL ret;
-    UINT i;
+   // const UINT n_buttons = 5;
+   // POINTER_PEN_INFO info;
+   // packet_data_t pkt;
+   // BOOL buttons[n_buttons];
+   // BOOL contact = FALSE;
+   // BOOL ret;
+   // UINT i;
 
-    for (i = 0; i < n_buttons; ++i)
-        buttons[i] = FALSE;
+   // for (i = 0; i < n_buttons; ++i)
+   //     buttons[i] = FALSE;
 
-    //if (pointerType == PT_PEN) {
-    //    // win8 only
-    //    ret = GetPointerPenInfo(pointerId, &info);
-    //    if (!leavingWindow) {
-    //        buttons[0] = IS_POINTER_FIRSTBUTTON_WPARAM(msg->wParam);
-    //        buttons[1] = IS_POINTER_SECONDBUTTON_WPARAM(msg->wParam);
-    //        buttons[2] = IS_POINTER_THIRDBUTTON_WPARAM(msg->wParam);
-    //        buttons[3] = IS_POINTER_FOURTHBUTTON_WPARAM(msg->wParam);
-    //        buttons[4] = IS_POINTER_FIFTHBUTTON_WPARAM(msg->wParam);
-    //        contact = IS_POINTER_INCONTACT_WPARAM(msg->wParam);
-    //    }
-    //} else {
-    //ret = GetPointerInfo(pointerId, &(info.pointerInfo));
-    info.penFlags = 0;
-    info.penMask = 0;
-    info.pressure = 0;
-    info.rotation = 0;
-    info.tiltX = 0;
-    info.tiltY = 0;
-    if (!leavingWindow) {
-        buttons[0] = msg->lParam == 0x0001;
-        buttons[1] = msg->lParam == 0x0002;
-        buttons[2] = msg->lParam == 0x0010;
-        contact = (buttons[0] || buttons[1] || buttons[2]);
-        info.pressure = contact ? 100 : 0;
-    }
-    //}
-    //if (!ret) {
-    //    if (logging)
-    //        logentry("failed to get pointer info for %x\n", pointerid);
-    //    return false;
-    //}
+   // //if (pointerType == PT_PEN) {
+   // //    // win8 only
+   // //    ret = GetPointerPenInfo(pointerId, &info);
+   // //    if (!leavingWindow) {
+   // //        buttons[0] = IS_POINTER_FIRSTBUTTON_WPARAM(msg->wParam);
+   // //        buttons[1] = IS_POINTER_SECONDBUTTON_WPARAM(msg->wParam);
+   // //        buttons[2] = IS_POINTER_THIRDBUTTON_WPARAM(msg->wParam);
+   // //        buttons[3] = IS_POINTER_FOURTHBUTTON_WPARAM(msg->wParam);
+   // //        buttons[4] = IS_POINTER_FIFTHBUTTON_WPARAM(msg->wParam);
+   // //        contact = IS_POINTER_INCONTACT_WPARAM(msg->wParam);
+   // //    }
+   // //} else {
+   // //ret = GetPointerInfo(pointerId, &(info.pointerInfo));
+   // info.penFlags = 0;
+   // info.penMask = 0;
+   // info.pressure = 0;
+   // info.rotation = 0;
+   // info.tiltX = 0;
+   // info.tiltY = 0;
+   // if (!leavingWindow) {
+   //     buttons[0] = msg->lParam == 0x0001;
+   //     buttons[1] = msg->lParam == 0x0002;
+   //     buttons[2] = msg->lParam == 0x0010;
+   //     contact = (buttons[0] || buttons[1] || buttons[2]);
+   //     info.pressure = contact ? 100 : 0;
+   // }
+   // //}
 
-    pkt.serial = 0;
-    pkt.contact = contact;
+   // pkt.serial = 0;
+   // pkt.contact = contact;
 
 
-    // x 1 - 4485260
-    // y 0 - 1634936
-    pkt.x = ((GET_X_LPARAM(msg->lParam) - 6) * 1000) + 666;
-    pkt.y = ((GET_Y_LPARAM(msg->lParam) - 6) * 1000) + 666; //context->lcInExtY - 
-    pkt.pressure = info.pressure;
-    pkt.time = GetTickCount();
-    pkt.buttons = (buttons[0] ? SBN_LCLICK : 0)
-        | (buttons[1] ? SBN_RCLICK : 0)
-        | (buttons[2] ? SBN_MCLICK : 0);
+   // // x 1 - 4485260
+   // // y 0 - 1634936
+   // pkt.x = ((GET_X_LPARAM(msg->lParam) - 6) * 1000) + 666;
+   // pkt.y = ((GET_Y_LPARAM(msg->lParam) - 6) * 1000) + 666; //ctx[0]->lcInExtY - 
+   // pkt.pressure = info.pressure;
+   // pkt.time = GetTickCount();
+   // pkt.buttons = (buttons[0] ? SBN_LCLICK : 0)
+   //     | (buttons[1] ? SBN_RCLICK : 0)
+   //     | (buttons[2] ? SBN_MCLICK : 0);
 
-    /// do we need to do the following?
-    /// SkipPointerFrameMessages(info.pointerInfo.frameId);
+   // /// do we need to do the following?
+   // /// SkipPointerFrameMessages(info.pointerInfo.frameId);
 
-    // adjusts values according to settings
-    adjustPosition(&pkt);
-    adjustPressure(&pkt);
+   // // adjusts values according to settings
+   // adjustPosition(&pkt);
+   // adjustPressure(&pkt);
 
-    // And FINALLY posts wintab message according to values we got from windows touch
-    if (enqueue_packet(&pkt)) {
-        if (logging) {
-            LogEntry("queued packet\n");
-            LogPacket(&pkt);
-        }
-        if (window)
-            PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)context);
-        return TRUE;
-    }
-    else {
-        // packet is probably duplicate, or the queue has been deleted
-        return FALSE;
-    }
+   // // And FINALLY posts wintab message according to values we got from windows touch
+   // if (enqueue_packet(&pkt)) {
+   //     LogEntry("queued packet\n");
+   //     //LogPacket(&pkt);
+   //     if (window)
+			//PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[0]);
+   //     return TRUE;
+   // }
+   // else {
+   //     // packet is probably duplicate, or the queue has been deleted
+   //     return FALSE;
+   // }
 }
 
 static void eraseMessage(LPMSG msg)
 {
     // we can't actually delete messages, so change its type
-    if (logging && debug)
-        LogEntry("erase %04x\n", msg->message);
+    //if (logging && debug)
+    //    LogEntry("erase %04x\n", msg->message);
     msg->message = 0x0;
 }
 
@@ -832,7 +762,6 @@ static void setWindowFeedback(HWND hWnd)
     BOOL ret;
     int i;
 
-    if (logging)
         LogEntry("configuring feedback for window: %p\n", hWnd);
 
     for (i = 0; i < (sizeof(settings) / sizeof(FEEDBACK_TYPE)); ++i) {
@@ -843,8 +772,7 @@ static void setWindowFeedback(HWND hWnd)
         //    sizeof(BOOL), 
         //    &setting
         //);
-        //if (logging)
-        //    LogEntry(" setting: %d, ret: %d\n", settings[i], ret);
+        LogEntry(" setting: %d, ret: %d\n", settings[i], ret);
     }
 }
 
@@ -870,6 +798,7 @@ static void setFeedbackForWindows(void)
 
 // this thing processes hooked events
 // my problem is that he uses hooks to receive messages, but TUIO mechanism is http/udp based and has nothing to do with these events
+// I'm going to use mouse presses to translate them to wintab for now
 LRESULT CALLBACK emuHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     //LPCWPSTRUCT msg = (LPCWPSTRUCT)lParam;
@@ -894,19 +823,12 @@ LRESULT CALLBACK emuHookProc(int nCode, WPARAM wParam, LPARAM lParam)
         LPARAM ext;
 
         switch (msg->message) {
+		// we might need this to emulate wintab clicks
         case WM_MOUSEMOVE:
         case WM_NCMOUSEMOVE:
-            //case WM_NCMOUSELEAVE:
-            //ext = GetMessageExtraInfo();
-            //leavingWindow = (msg->message == WM_NCMOUSELEAVE);
-            //LogEntry("%p %p %04x wParam:%x lParam:%x ext:%x, ignore: %d\n", hook, msg->hwnd, msg->message, msg->wParam, msg->lParam, ext, ignore);
-            //LogEntry(" x:%d y:%d\n", GET_X_LPARAM(msg->lParam), GET_Y_LPARAM(msg->lParam));
-            if (handleMessage(pointerId, pointerType, leavingWindow, msg)) {
-                eraseMessage(msg);
-            }
+                //eraseMessage(msg);
             break;
         default:
-            //LogEntry("i %04x\n", msg->message);
             break;
         }
     }
@@ -952,14 +874,13 @@ static int findThreadsForHooking(void)
 // 
 static void installHook(int id, hook_t *hook)
 {
-    hook->handle = SetWindowsHookEx(
-        WH_GETMESSAGE, //WH_CALLWNDPROCRET,
-        emuHookProc,
-        NULL,
-        hook->thread
-        );
-    if (logging)
-        LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
+    //hook->handle = SetWindowsHookEx(
+    //    WH_GETMESSAGE, //WH_CALLWNDPROCRET,
+    //    emuHookProc,
+    //    NULL,
+    //    hook->thread
+    //    );
+    // LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
 }
 
 // hmmm, it hooks something
@@ -1010,8 +931,7 @@ void emuEnableThread(DWORD thread)
     if (!enabled)
         return;
 
-    if (logging)
-        LogEntry("emuEnableThread(%08x)\n", thread);
+    LogEntry("emuEnableThread(%08x)\n", thread);
 
     // find a free hook structure
     for (i = 0; i < MAX_HOOKS; ++i) {
@@ -1038,8 +958,7 @@ void emuDisableThread(DWORD thread)
     if (!enabled)
         return;
 
-    if (logging)
-        LogEntry("emuDisableThread(%08x)\n", thread);
+    LogEntry("emuDisableThread(%08x)\n", thread);
 
     // find hook and remove it
     for (i = 0; i < MAX_HOOKS; ++i) {
@@ -1053,25 +972,14 @@ void emuDisableThread(DWORD thread)
     }
 }
 
-//I Guess it starts to process input from win8 touch
+//Start listening to TUIO messages
 static void enableProcessing(void)
 {
+	
     if (!enabled) {
-        installHooks();
+        //installHooks();
+		setupReceiver();
         enabled = TRUE;
-
-        //TUIO part
-        OscReceiver *osc_receiver;
-        if (_udp) osc_receiver = new UdpReceiver(_port);
-        else {
-            if (_address == "incoming") osc_receiver = new TcpReceiver(_port);
-            else osc_receiver = new TcpReceiver(_address.c_str(), _port);
-        }
-        TuioToWinTab TuioListenerInstance;
-        TuioClient client(osc_receiver);
-        client.addTuioListener(&TuioListenerInstance);
-        client.connect(false); //I think we're having a problem here
-        delete osc_receiver;
     }
     processing = TRUE;
 }
@@ -1080,7 +988,7 @@ static void disableProcessing(BOOL hard)
 {
     processing = FALSE;
     if (hard) {
-        uninstallHooks();
+        //uninstallHooks();
         enabled = FALSE;
     }
 }
@@ -1159,10 +1067,10 @@ void emuInit(BOOL fLogging, BOOL fDebug, emu_settings_t *settings)
     // critical section is needed when we have a concurrent resource that we don't want to overwrite while still writing
     InitializeCriticalSection(&q_lock);
 
-    // let's have some wintab context, amerite?
+    // let's have some wintab Context, amerite?
     init_context(&default_context);
     // checks if screen res changed and reports back the result and sets the values of some of the parameters we initialised before
-    update_screen_metrics(&default_context);
+    //update_screen_metrics(&default_context);
 
     enabled = FALSE;
     processing = FALSE;
@@ -1186,171 +1094,341 @@ void emuShutdown(void)
     window = NULL;
     module = NULL;
 
-    if (context) {
-        free(context);
-        context = NULL;
-    }
+	for (auto c=0;c<ctx.size();c++){
+		if (ctx[c]) {
+			free(ctx[c]);
+			ctx[c] = NULL;
+		}
+	}
 }
 
 //1, identification info, specification and soft version, tablet vendor and model
 //2, capability information, dimensions, resolutions, features, cursor types.
-//3, categories that give defaults for all tablet context attributes.
+//3, categories that give defaults for all tablet Context attributes.
 //etc
 static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutput)
 {
     UINT ret = 0;
+	if (lpOutput == NULL){
+		return 1; //we need to return the required buffer size
+	}
     switch (wCategory) {
-    case WTI_INTERFACE:
-        switch (nIndex) {
-        case IFC_WINTABID:
-            if (fUnicode) {
-                ret = copy_strw(lpOutput, "TUIO to WINTAB");
-            }
-            else {
-                ret = copy_stra(lpOutput, "TUIO to WINTAB");
-            }
-            break;
-        case IFC_SPECVERSION:
-            ret = copy_uint(lpOutput, 0x0104);
-            break;
-        case IFC_IMPLVERSION:
-            ret = copy_uint(lpOutput, 0x01);
-            break;
-        case IFC_NDEVICES:
-            ret = copy_uint(lpOutput, 1);
-            break;
-        case IFC_NCURSORS:
-            ret = copy_uint(lpOutput, 1);
-            break;
-        case IFC_NCONTEXTS:
-            ret = copy_uint(lpOutput, 1);
-            break;
-        case IFC_CTXOPTIONS:
-            ret = copy_uint(lpOutput, 0); // FIXME
-            break;
-        case IFC_CTXSAVESIZE:
-            ret = copy_uint(lpOutput, 0); // FIXME
-            break;
-        case IFC_NEXTENSIONS:
-            ret = copy_uint(lpOutput, 0);
-            break;
-        case IFC_NMANAGERS:
-            ret = copy_uint(lpOutput, 0);
-            break;
-        }
-        break;
-    case WTI_STATUS:
-        switch (nIndex) {
-        case STA_CONTEXTS:
-        case STA_SYSCTXS:
-        case STA_PKTRATE:
-        case STA_PKTDATA:
-        case STA_MANAGERS:
-        case STA_SYSTEM:
-            break;
-        case STA_BUTTONUSE:
-            ret = copy_dword(lpOutput, 0x7);
-            break;
-        case STA_SYSBTNUSE:
-            ret = copy_dword(lpOutput, 0x7);
-            break;
-        }
-        break;
-    case WTI_DEFCONTEXT:
-    case WTI_DEFSYSCTX:
-        if (nIndex == 0) {
-            if (fUnicode) {
-                ret = convert_contextw((LPLOGCONTEXTW)lpOutput, &default_context);
-            }
-            else {
-                ret = copy_contexta((LPLOGCONTEXTA)lpOutput, &default_context);
-            }
-        }
-        break;
-    case WTI_DDCTXS:
-    case WTI_DSCTXS:
-        if (nIndex == 0) {
-            if (fUnicode) {
-                ret = convert_contextw((LPLOGCONTEXTW)lpOutput, (context ? context : &default_context));
-            }
-            else {
-                ret = copy_contexta((LPLOGCONTEXTA)lpOutput, (context ? context : &default_context));
-            }
-        }
-        break;
-    case WTI_DEVICES:
-        switch (nIndex) {
-        case DVC_NAME:
-            if (fUnicode) {
-                ret = copy_strw(lpOutput, "Windows");
-            }
-            else {
-                ret = copy_stra(lpOutput, "Windows");
-            }
-            break;
-        case DVC_HARDWARE:
-            ret = copy_uint(lpOutput, HWC_INTEGRATED);
-            break;
-        case DVC_NCSRTYPES:
-        case DVC_FIRSTCSR:
-        case DVC_PKTRATE:
-        case DVC_PKTDATA:
-        case DVC_PKTMODE:
-        case DVC_CSRDATA:
-        case DVC_XMARGIN:
-        case DVC_YMARGIN:
-        case DVC_ZMARGIN:
-        case DVC_X:
-        case DVC_Y:
-        case DVC_Z:
-            break;
-        case DVC_NPRESSURE:
-            ret = copy_axis(lpOutput, 0, 1023, 0, 0);
-            break;
-        case DVC_TPRESSURE:
-        case DVC_ORIENTATION:
-        case DVC_ROTATION: /* 1.1 */
-        case DVC_PNPID: /* 1.1 */
-            break;
-        }
-        break;
-    case WTI_CURSORS:
-        // always first cursor
-        switch (nIndex) {
-        case CSR_NAME:
-            if (fUnicode) {
-                ret = copy_strw(lpOutput, "TUIO Pointer");
-            }
-            else {
-                ret = copy_stra(lpOutput, "TUIO Pointer");
-            }
-            break;
-        case CSR_ACTIVE:
-        case CSR_PKTDATA:
-        case CSR_BUTTONS:
-        case CSR_BUTTONBITS:
-        case CSR_BTNNAMES:
-        case CSR_BUTTONMAP:
-        case CSR_SYSBTNMAP:
-        case CSR_NPBUTTON:
-        case CSR_NPBTNMARKS:
-        case CSR_NPRESPONSE:
-        case CSR_TPBUTTON:
-        case CSR_TPBTNMARKS:
-        case CSR_TPRESPONSE:
-        case CSR_PHYSID: /* 1.1 */
-        case CSR_MODE: /* 1.1 */
-        case CSR_MINPKTDATA: /* 1.1 */
-        case CSR_MINBUTTONS: /* 1.1 */
-        case CSR_CAPABILITIES: /* 1.1 */
-        case CSR_TYPE: /* 1.2 */
-            break;
-        }
-        break;
-    case WTI_EXTENSIONS:
-        break;
-    default:
-        break;
+		case 0:
+			ret = TRUE;  //if program just checks if wintab exists
+			// we have to return the largest complete category buffer size in bytes
+			// and which one would it exactly be?
+		case WTI_INTERFACE:
+			switch (nIndex) {
+				case 0:
+					ret = TRUE;
+					// we should return all of the information entries in the category in a single data structure
+					// !!!! I have no idea how to do that!
+					break;
+				case IFC_WINTABID:
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "CCV Multitouch Tablet 1.5");
+					}
+					else {
+						ret = copy_stra(lpOutput, "CCV Multitouch Tablet 1.5");
+					}
+					break;
+				// high-order byte = major version, low-order byte = minor version number.
+				case IFC_SPECVERSION:
+					ret = copy_uint(lpOutput, 0x0104);
+					break;
+				case IFC_IMPLVERSION:
+					ret = copy_uint(lpOutput, 0x0104); //
+					break;
+				case IFC_NDEVICES:
+					ret = copy_uint(lpOutput, 1);
+					break;
+				case IFC_NCURSORS:
+					ret = copy_uint(lpOutput, 3); //number of cursor types supported
+					break;
+				case IFC_NCONTEXTS:
+					ret = copy_uint(lpOutput, 1);
+					break;
+				case IFC_CTXOPTIONS:
+					ret = copy_uint(lpOutput, CXO_MESSAGES); // FIXME  flags indicating which Context options are supported 
+					break;
+				case IFC_CTXSAVESIZE:
+					ret = copy_uint(lpOutput, 0); // FIXME	the size of the save information returned from WTSave.
+					break;
+				case IFC_NEXTENSIONS:
+					ret = copy_uint(lpOutput, 0);
+					break;
+				case IFC_NMANAGERS:
+					ret = copy_uint(lpOutput, 0);
+					break;
+			}
+			break;
+		case WTI_STATUS:
+			switch (nIndex) {
+				case STA_CONTEXTS:
+					//the number of contexts currently open.
+					ret = copy_uint(lpOutput, 1);
+					break;
+				case STA_SYSCTXS:
+					//the number of system contexts currently open.
+					ret = copy_uint(lpOutput, 1);
+					break;
+				case STA_PKTRATE:
+					//maximum packet report rate currently being re­ceived by any Context, in Hertz.
+					break;
+				case STA_PKTDATA:
+					//mask indicating which packet data items are re­quested by at least one Context.
+					break;
+				case STA_MANAGERS:
+					ret = copy_uint(lpOutput, 0); //the number of manager handles currently open.
+					break;
+				case STA_SYSTEM:
+					ret = TRUE;	// non-zero value if system pointing is available to the whole screen; zero otherwise.
+					break;
+				case STA_BUTTONUSE:
+					//button mask indicating the logical buttons whose events are requested by at least one Context
+					ret = copy_dword(lpOutput, 0x7);
+					break;
+				case STA_SYSBTNUSE:
+					//button mask indicating which logical buttons are as­signed a system button function by the current cursor's system button map.
+					ret = copy_dword(lpOutput, 0x7);
+					break;
+				default:
+					//The problem with inkscape is that it tries to find any active pen by adding a number to 200 up until it reaches some sky high number
+					break;
+			}
+			break;
+		case WTI_DEFCONTEXT:
+		case WTI_DEFSYSCTX:
+		case WTI_DDCTXS:
+		case WTI_DDCTX_1:
+		case WTI_DDCTX_2:
+			//after 500 (system Context) it asks for 400,401,402 (digitizing Context) and fails
+			//multiplex categories! 400-499, 500-599
+		case WTI_DSCTXS:
+			switch (nIndex) {
+				case 0:
+					if (fUnicode) {
+						ret = convert_contextw((LPLOGCONTEXTW)lpOutput, &default_context);
+					}
+					else {
+						ret = copy_contexta((LPLOGCONTEXTA)lpOutput, &default_context);
+					}
+					break;
+				case CTX_NAME:
+					break;
+				case CTX_OPTIONS:
+					//Returns option flags.
+					//For the default digitizing Context, CXO_MARGIN and CXO_MGNINSIDE are allowed.
+					//For the default system Context, CXO_SYSTEM is required; CXO_PEN, CXO_MARGIN, and CXO_MGNINSIDE are allowed.
+					ret = default_context.lcOptions;
+					break;
+				case CTX_STATUS:
+					break;
+				case CTX_LOCKS:
+					break;
+				case CTX_MSGBASE:
+					break;
+				case CTX_DEVICE:
+					break;
+				case CTX_PKTRATE:
+					break;
+				case CTX_PKTDATA:
+					break;
+				case CTX_PKTMODE:
+					break;
+				case CTX_MOVEMASK:
+					break;
+				case CTX_BTNDNMASK:
+					break;
+				case CTX_BTNUPMASK:
+					break;
+				case CTX_INORGX:
+					break;
+				case CTX_INORGY:
+					break;
+				case CTX_INORGZ:
+					break;
+				case CTX_INEXTX:
+					break;
+				case CTX_INEXTY:
+					break;
+				case CTX_INEXTZ:
+					break;
+				case CTX_OUTORGX:
+					break;
+				case CTX_OUTORGY:
+					break;
+				case CTX_OUTORGZ:
+					break;
+				case CTX_OUTEXTX:
+					break;
+				case CTX_OUTEXTY:
+					break;
+				case CTX_OUTEXTZ:
+					break;
+				case CTX_SENSX:
+					break;
+				case CTX_SENSY:
+					break;
+				case CTX_SENSZ:
+					break;
+				case CTX_SYSMODE:
+					break;
+				case CTX_SYSORGX:
+					break;
+				case CTX_SYSORGY:
+					break;
+				case CTX_SYSEXTX:
+					break;
+				case CTX_SYSEXTY:
+					break;
+				case CTX_SYSSENSX:
+					break;
+				case CTX_SYSSENSY:
+					break;
+				default:
+					//The problem with inkscape is that it tries to find any active pen by adding a number to 200 up until it reaches some sky high number
+					break;
+			}
+			break;
+
+			break;
+		case WTI_VIRTUAL_DEVICE:
+		case WTI_DEVICES:
+			switch (nIndex) {
+				case DVC_NAME:
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "TUIO to WINTAB interface");
+					}
+					else {
+						ret = copy_stra(lpOutput, "TUIO to WINTAB interface");
+					}
+					break;
+				case DVC_HARDWARE:
+					ret = copy_uint(lpOutput, HWC_INTEGRATED);
+					//HWC_INTEGRATED Indicates that the display and digitizer share the same surface.
+					//HWC_TOUCH Indicates that the cursor must be in physical contact with the device to report position.
+					//HWC_HARDPROX Indicates that device can generate events when the cursor is entering and leaving the physical detection range.
+					//HWC_PHYSID_CURSORS(1.1) Indicates that device can uniquely iden­tify the active cursor in hardware.
+					break;
+				case DVC_FIRSTCSR:
+					//Returns the first cursor type number for the device.
+					ret = copy_uint(lpOutput, 0);
+					break;
+				case DVC_PKTRATE:
+					// Returns the maximum packet report rate in Hertz.
+					ret = copy_uint(lpOutput, 240);
+					break;
+				case DVC_NCSRTYPES:
+					ret = copy_uint(lpOutput, 3);
+					break;
+				case DVC_PKTDATA:
+				case DVC_PKTMODE:
+				case DVC_CSRDATA:
+				case DVC_XMARGIN:
+				case DVC_YMARGIN:
+				case DVC_ZMARGIN:
+					break;
+				//AXIS  Each returns the tablet's range and resolution capabilities, in the x, y, and z axes, respectively.
+				case DVC_X:
+					ret = copy_axis(lpOutput, 0, 38.5, TU_CENTIMETERS, 0xA256AC7B);	// 1600*1000/38.5 = 41558.44155 = A256.AC7B
+					break;
+				case DVC_Y:
+					ret = copy_axis(lpOutput, 0, 29, TU_CENTIMETERS, 0x793ABC93);	//900*1000/29 = 31034.48275 = 793A.BC93
+					break;
+				case DVC_Z:
+					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
+					break;
+				case DVC_NPRESSURE:
+					ret = copy_axis(lpOutput, 0, 1023, 0, 0); //0-1024
+					break;
+				case DVC_TPRESSURE:
+					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
+					break;
+				case DVC_ORIENTATION:
+					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
+					break;
+				case DVC_ROTATION: /* 1.1 */
+					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
+					break;
+				case DVC_PNPID: /* 1.1 */
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "CCVTUIO");
+					}
+					else {
+						ret = copy_stra(lpOutput, "CCVTUIO");
+					}
+					break;
+			}
+			break;
+		case CSR_NAME_PUCK:
+			switch (nIndex) {
+				case CSR_NAME:
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "TUIO puck");
+					}
+					else {
+						ret = copy_stra(lpOutput, "TUIO puck");
+					}
+					break;
+				case CSR_ACTIVE:
+					ret = TRUE;
+					break;
+				case CSR_PKTDATA:
+				case CSR_BUTTONS:
+				case CSR_BUTTONBITS:
+				case CSR_BTNNAMES:
+				case CSR_BUTTONMAP:
+				case CSR_SYSBTNMAP:
+				case CSR_NPBUTTON:
+				case CSR_NPBTNMARKS:
+				case CSR_NPRESPONSE:
+				case CSR_TPBUTTON:
+				case CSR_TPBTNMARKS:
+				case CSR_TPRESPONSE:
+				case CSR_PHYSID: /* 1.1 */
+				case CSR_MODE: /* 1.1 */
+				case CSR_MINPKTDATA: /* 1.1 */
+				case CSR_MINBUTTONS: /* 1.1 */
+				case CSR_CAPABILITIES: /* 1.1 */
+				case CSR_TYPE: /* 1.2 */
+					break;
+			}
+			break;
+		case CSR_NAME_PRESSURE_STYLUS:
+			switch (nIndex) {
+				case CSR_NAME:
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "TUIO pen");
+					}
+					else {
+						ret = copy_stra(lpOutput, "TUIO pen");
+					}
+					break;
+				case CSR_ACTIVE:
+					ret = FALSE;
+					break;
+			}
+			break;
+		case CSR_NAME_ERASER:
+			switch (nIndex) {
+				case CSR_NAME:
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, "TUIO eraser");
+					}
+					else {
+						ret = copy_stra(lpOutput, "TUIO eraser");
+					}
+					break;
+				case CSR_ACTIVE:
+					ret = FALSE;
+					break;
+			}
+			break;
+		case WTI_EXTENSIONS:
+			break;
+		default:
+			break;
     }
     return ret;
 }
@@ -1366,23 +1444,23 @@ UINT emuWTInfoW(UINT wCategory, UINT nIndex, LPVOID lpOutput)
 
 static HCTX emuWTOpen(BOOL unicode, HWND hWnd, LPVOID lpLogCtx, BOOL fEnable)
 {
-    if (context || !lpLogCtx)
+	if (!lpLogCtx)
         return NULL;
 
     window = hWnd;
-    context = (LPLOGCONTEXTA)malloc(sizeof(LOGCONTEXTA));
+	ctx.push_back( (LPLOGCONTEXTA)malloc(sizeof(LOGCONTEXTA)) );
     if (unicode) {
-        convert_contexta(context, (LPLOGCONTEXTW)lpLogCtx);
+		convert_contexta(ctx.back(), (LPLOGCONTEXTW)lpLogCtx);
     }
     else {
-        memcpy(context, lpLogCtx, sizeof(LOGCONTEXTA));
+		memcpy(ctx.back(), lpLogCtx, sizeof(LOGCONTEXTA));
     }
 
     if (fEnable) {
         enableProcessing();
     }
 
-    return (HCTX)context;
+	return (HCTX)ctx.back();
 }
 HCTX emuWTOpenA(HWND hWnd, LPLOGCONTEXTA lpLogCtx, BOOL fEnable)
 {
@@ -1395,21 +1473,26 @@ HCTX emuWTOpenW(HWND hWnd, LPLOGCONTEXTW lpLogCtx, BOOL fEnable)
 
 BOOL emuWTClose(HCTX hCtx)
 {
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
-        if (enabled) {
-            disableProcessing(TRUE);
-        }
-        free(hCtx);
-        context = NULL;
-    }
-    return TRUE;
+	if (ctxHas(hCtx)) {
+		//if (enabled) {
+		//	disableProcessing(TRUE);
+		//}
+		ctx.erase(
+			std::remove(
+				ctx.begin(),ctx.end(),(LPLOGCONTEXTA)hCtx
+			), ctx.end()
+		);
+		free(hCtx);
+		return TRUE;
+	}
+	return FALSE;
 }
 
 int emuWTPacketsGet(HCTX hCtx, int cMaxPkts, LPVOID lpPkt)
 {
     int ret = 0;
 
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
+	if (ctxHas(hCtx)) {
         LPBYTE out = (LPBYTE)lpPkt;
         EnterCriticalSection(&q_lock);
         while ((ret < cMaxPkts) && (queue_size() > 0)) {
@@ -1428,12 +1511,12 @@ BOOL emuWTPacket(HCTX hCtx, UINT wSerial, LPVOID lpPkt)
     packet_data_t pkt;
     BOOL ret = FALSE;
 
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
+    //if (ctxHas(hCtx)) {
         ret = dequeue_packet(wSerial, &pkt);
         if (ret && lpPkt) {
             write_packet(lpPkt, &pkt);
         }
-    }
+    //}
 
     return ret;
 }
@@ -1455,6 +1538,10 @@ BOOL emuWTEnable(HCTX hCtx, BOOL fEnable)
 BOOL emuWTOverlap(HCTX hCtx, BOOL fToTop)
 {
     return TRUE;
+	//This function sends a tablet Context to the top or bottom of the order of over­lapping tablet contexts.
+	//Specifies sending the Context to the top of the overlap or­der if non - zero, or to the bottom if zero.
+	//The function returns non - zero if successful, zero otherwise.
+	//Tablet contexts' input areas are allowed to overlap. The tablet interface main­tains an overlap order that helps determine which Context will process a given event. The topmost Context in the overlap order whose input Context encom­passes the event, and whose event masks select the event will process the event.
 }
 
 BOOL emuWTConfig(HCTX hCtx, HWND hWnd)
@@ -1466,7 +1553,7 @@ BOOL emuWTConfig(HCTX hCtx, HWND hWnd)
 
 BOOL emuWTGetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
 {
-    if (lpLogCtx && hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
+	if (lpLogCtx && ctxHas(hCtx)) {
         memcpy(lpLogCtx, hCtx, sizeof(LOGCONTEXTA));
         return TRUE;
     }
@@ -1477,8 +1564,8 @@ BOOL emuWTGetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
 
 BOOL emuWTGetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
 {
-    if (lpLogCtx && hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
-        convert_contextw(lpLogCtx, context);
+	if (lpLogCtx && ctxHas(hCtx)) {
+		convert_contextw(lpLogCtx, ctx[0]);
         return TRUE;
     }
     else {
@@ -1488,7 +1575,7 @@ BOOL emuWTGetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
 
 BOOL emuWTSetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
 {
-    if (lpLogCtx && hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
+	if (lpLogCtx && ctxHas(hCtx)) {
         memcpy(hCtx, lpLogCtx, sizeof(LOGCONTEXTA));
         return TRUE;
     }
@@ -1499,8 +1586,8 @@ BOOL emuWTSetA(HCTX hCtx, LPLOGCONTEXTA lpLogCtx)
 
 BOOL emuWTSetW(HCTX hCtx, LPLOGCONTEXTW lpLogCtx)
 {
-    if (lpLogCtx && hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
-        convert_contexta(context, (LPLOGCONTEXTW)lpLogCtx);
+	if (lpLogCtx && ctxHas(hCtx)) {
+		convert_contexta(ctx[0], (LPLOGCONTEXTW)lpLogCtx);
         return TRUE;
     }
     else {
@@ -1536,7 +1623,7 @@ int emuWTPacketsPeek(HCTX hCtx, int cMaxPkt, LPVOID lpPkts)
 {
     int ret = 0;
 
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
+	if (ctxHas(hCtx)) {
         LPBYTE out = (LPBYTE)lpPkts;
         UINT old_q_start;
 
@@ -1568,25 +1655,24 @@ int emuWTDataPeek(HCTX hCtx, UINT wBegin, UINT wEnd, int cMaxPkts, LPVOID lpPkts
     return ret;
 }
 
+
+
 int emuWTQueueSizeGet(HCTX hCtx)
 {
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context)) {
-        return q_length;
+	context = (LPLOGCONTEXTA)hCtx;
+	if (ctxHas(hCtx)) {
+		return q_length;
     }
-    else {
-        return 0;
-    }
+    return 0;
 }
 
 BOOL emuWTQueueSizeSet(HCTX hCtx, int nPkts)
 {
-    if (hCtx && ((LPVOID)hCtx == (LPVOID)context) && (nPkts > 0)) {
+	if (ctxHas(hCtx) && (nPkts > 0)) {
         set_queue_length(nPkts);
         return TRUE;
     }
-    else {
-        return 0;
-    }
+    return 0;
 }
 
 HMGR emuWTMgrOpen(HWND hWnd, UINT wMsgBase)
@@ -1600,3 +1686,149 @@ BOOL emuWTMgrClose(HMGR hMgr)
     BOOL ret = FALSE;
     return ret;
 }
+
+
+
+static std::string _address("localhost");
+static bool _udp = true;
+static int _port = 3333;
+static BOOL listening = FALSE;
+
+// the problem was: after completing dllmain wipes everything that is not stored anywhere, so we have to store our thread somewhere
+// now it doesn't hang the application, but the problem is that it first says it binded to port and then says it cannot bind to port
+// the only minor problem is that it tries to bind to that port twice
+// because I define this shit twice, obviously
+TuioToWinTab TuioListenerInstance;
+
+OscReceiver* OscUdpReceiver = new UdpReceiver(_port);
+TuioClient UdpClient(OscUdpReceiver);
+//OscReceiver* OscTcpReceiver = new TcpReceiver(_address.c_str(), _port);
+//TuioClient TcpClient(OscTcpReceiver);
+void setupReceiver(void){
+	if (!listening) {
+		//TUIO part
+		//we need two different sets of variables to process tcp and udp, but right now I only need one
+		if (_udp){
+			UdpClient.addTuioListener(&TuioListenerInstance);
+			UdpClient.connect(false); //had some problems here, but it turns out the author of this library did his job well
+		}
+		//else {
+		//	TcpClient.addTuioListener(&TuioListenerInstance);
+		//	TcpClient.connect(false);
+		//}
+
+		listening = TRUE;
+	}
+}
+
+
+void TuioToWinTab::addTuioObject(TuioObject *tobj) {
+	LogEntry("add obj %d (%d/%d) %f %f %f\n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle());
+}
+
+void TuioToWinTab::updateTuioObject(TuioObject *tobj) {
+	LogEntry("set obj %d (%d/%d) %f %f %f   %f %f %f %f \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle(), tobj->getMotionSpeed(), tobj->getRotationSpeed(), tobj->getMotionAccel(), tobj->getRotationAccel());
+}
+
+void TuioToWinTab::removeTuioObject(TuioObject *tobj) {
+	LogEntry("del obj %d (%d/%d) \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID());
+}
+
+void TuioToWinTab::addTuioCursor(TuioCursor *tcur) {
+	LogEntry("add cur %d (%d/%d) %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
+	handleTuioMessage(tcur);
+}
+
+void TuioToWinTab::updateTuioCursor(TuioCursor *tcur) {
+	//LogEntry("set cur %d (%d/%d) %f %f    %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY(), tcur->getMotionSpeed(), tcur->getMotionAccel());
+	handleTuioMessage(tcur);
+}
+
+void TuioToWinTab::removeTuioCursor(TuioCursor *tcur) {
+	LogEntry("del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID());
+	//handleTuioMessage(tcur);
+}
+
+void TuioToWinTab::addTuioBlob(TuioBlob *tblb) {
+	LogEntry("add blb %d (%d/%d) %f %f %f   %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea());
+}
+
+void TuioToWinTab::updateTuioBlob(TuioBlob *tblb) {
+	LogEntry("set blb %d (%d/%d) %f %f %f   %f %f %f   %f %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea(), tblb->getMotionSpeed(), tblb->getRotationSpeed(), tblb->getMotionAccel(), tblb->getRotationAccel());
+}
+
+void TuioToWinTab::removeTuioBlob(TuioBlob *tblb) {
+	LogEntry("del blb %d (%d/%d) \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID());
+}
+
+void  TuioToWinTab::refresh(TuioTime frameTime) {
+	//std::cout << "refresh " << frameTime.getTotalMilliseconds() << std::endl;
+
+}
+
+static BOOL handleTuioMessage(TuioCursor *tcur)
+{
+	const UINT n_buttons = 5;
+	//POINTER_PEN_INFO info;
+	packet_data_t pkt;
+	BOOL buttons[n_buttons];
+	BOOL contact = FALSE;
+	BOOL ret;
+	UINT i;
+	UINT32 pressure = 1023; //for debug purposes for now
+
+	for (i = 0; i < n_buttons; ++i)
+		buttons[i] = FALSE;
+
+	//info.penFlags = 0;
+	//info.penMask = 0;
+	//info.pressure = 0;
+	//info.rotation = 0;
+	//info.tiltX = 0;
+	//info.tiltY = 0;
+	//if (!leavingWindow) {
+	//	buttons[0] = msg->lParam == 0x0001;
+	//	buttons[1] = msg->lParam == 0x0002;
+	//	buttons[2] = msg->lParam == 0x0010;
+	//	contact = (buttons[0] || buttons[1] || buttons[2]);
+	//	info.pressure = contact ? 100 : 0;
+	//}
+
+	pkt.serial = 0;
+	pkt.contact = contact;
+
+	pkt.x = screen_width * tcur->getX();
+	pkt.y = screen_height - screen_height * tcur->getY(); //ctx[N]->lcInExtY - 
+	pkt.pressure = pressure;
+	pkt.time = GetTickCount();
+	pkt.buttons = (buttons[0] ? SBN_LCLICK : 0)
+		| (buttons[1] ? SBN_RCLICK : 0)
+		| (buttons[2] ? SBN_MCLICK : 0);
+
+	// adjusts values according to settings
+	//adjustPosition(&pkt);
+	//adjustPressure(&pkt);
+
+	// And FINALLY posts wintab message according to values we got from TUIO
+	if (enqueue_packet(&pkt)) {
+		//LogEntry("queued packet\n");
+		//LogPacket(&pkt);
+		if (window){
+			for (auto c=0; c<ctx.size(); c++){
+				PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[c]); //for some reason the test app opens two contexts, that's why tests fail
+				//An application can open more than one Context, but most only need one.
+				//Applications can customize their contexts, or they can open a Context using a default Context specification that is always available.
+				//The WTInfo function provides access to the default Context specification.
+				//contexts could be passive or active, so we need to store settings separately
+			}
+		}
+		return TRUE;
+		// does it only post a packet to queue, or posts it directly to window?
+		//both
+	}
+	else {
+		// packet is probably duplicate, or the queue has been deleted
+		return FALSE;
+	}
+}
+

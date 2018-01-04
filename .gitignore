@@ -1,4 +1,5 @@
 windows/Release/
+windows/Debug/
 
 *.mode1v3
 *.pbxuser
