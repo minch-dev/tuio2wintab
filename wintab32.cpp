@@ -18,7 +18,7 @@ of merchantability or fitness for any particular purpose.
 
 
 #define INI_FILE                _T("wintab32.ini")
-#define DEFAULT_LOG_FILE        _T("Z:\\wintab32.txt")
+#define DEFAULT_LOG_FILE        _T("C:\\wintab32.txt")
 #define DEFAULT_WINTAB_DLL      _T("C:\\WINDOWS\\WINTAB32.DLL")
 
 static BOOL     initialised     = FALSE;

@@ -47,9 +47,10 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v120_xp</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
     <CLRSupport>false</CLRSupport>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -71,23 +72,23 @@
     <_ProjectFileVersion>11.0.61030.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>Debug\$(Platform)\</OutDir>
+    <OutDir>C:\Windows\SysWOW64\</OutDir>
     <IntDir>Debug\$(Platform)\libTUIO\</IntDir>
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
     <IntDir>Release\$(Platform)\libTUIO\</IntDir>
-    <OutDir>Debug\$(Platform)\</OutDir>
+    <OutDir>C:\Windows\System32\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>Release\$(Platform)\</OutDir>
+    <OutDir>C:\Windows\SysWOW64</OutDir>
     <IntDir>Release\$(Platform)\libTUIO\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>Release\$(Platform)\</OutDir>
+    <OutDir>C:\Windows\System32\</OutDir>
     <IntDir>Release\$(Platform)\libTUIO\</IntDir>
     <CustomBuildAfterTargets>
     </CustomBuildAfterTargets>
@@ -115,9 +116,12 @@
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
       <ModuleDefinitionFile>../wintab32.def</ModuleDefinitionFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Link>
     <PostBuildEvent>
-      <Command>COPY $(TargetPath) A:\BUILD\WintabDN.NET.API\bin\$(ConfigurationName)\$(TargetFileName)</Command>
+      <Command>
+      </Command>
+      <Message>COPY $(TargetPath) C:\Windows\SysWOW64\$(TargetFileName)  /Y</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -168,7 +172,8 @@
       <ModuleDefinitionFile>../wintab32.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>COPY $(TargetPath) A:\BUILD\WintabDN.NET.API\bin\$(ConfigurationName)\$(TargetFileName)</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -196,9 +201,11 @@
       <AddModuleNamesToAssembly>
       </AddModuleNamesToAssembly>
       <ModuleDefinitionFile>../wintab32.def</ModuleDefinitionFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Link>
     <PostBuildEvent>
-      <Command>COPY $(TargetPath) C:\Windows\System32\$(TargetFileName) /Y</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -127,5 +127,5 @@ HMGR emuWTMgrOpen(HWND hWnd, UINT wMsgBase);
 BOOL emuWTMgrClose(HMGR hMgr);
 
 void setupReceiver(void);
-static BOOL handleTuioMessage(TuioCursor *tcur);
+static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure);
 #endif /* INCLUDED_TuioToWinTab_H */

@@ -46,6 +46,7 @@ of merchantability or fitness for any particular purpose.
 #include "wintab.h"
 #include "pktdef.h"
 #include "logging.h"
+#include <wchar.h>
 
 //my mistake is that I treat a DLL as a program running in memory, while DLL is just a library of functions\
 // that means there is no starting point here, external program wants some function -> gets it from this library -> it runs and returns results.
@@ -63,7 +64,10 @@ of merchantability or fitness for any particular purpose.
 #define TIME_CLOSE_MS 2
 
 #define MOUSE_POINTER_ID 1
-
+BOOL LDOWN = FALSE;
+BOOL RDOWN = FALSE;
+BOOL MDOWN = FALSE;
+BOOL TUIOCURSOR = FALSE;
 
 static BOOL logging = TRUE;
 static BOOL debug = TRUE;
@@ -90,6 +94,7 @@ static emu_settings_t config;
 static HMODULE module = NULL;
 
 static HWND window = NULL;
+static HWND real_window = NULL;
 static hook_t hooks[MAX_HOOKS];
 
 static UINT32 pointers[MAX_POINTERS];
@@ -99,14 +104,23 @@ static packet_data_t *queue = NULL;
 static UINT next_serial = 1;
 static UINT q_start, q_end, q_length;
 static CRITICAL_SECTION q_lock;
-static UINT screen_height = 0;
-static UINT screen_width = 0;
+static UINT tablet_height = 0xffff; //0xffff
+static UINT tablet_width = 0xffff;
+
+int screen_width = GetSystemMetrics(SM_CXSCREEN);
+int screen_height = GetSystemMetrics(SM_CYSCREEN);
 
 static LOGCONTEXTA default_context;
 static LPLOGCONTEXTA context = NULL;
 
 std::vector<LPLOGCONTEXTA> ctx;
 
+static std::string _address("localhost");
+static bool _udp = true;
+static int _port = 3333;
+static BOOL listening = FALSE;
+static UINT32 max_pressure = 1023;
+static UINT32 min_pressure = 0;
 //static LPLOGCONTEXTA contexts[MAX_CONTEXTS];
 
 
@@ -128,16 +142,16 @@ static void init_context(LOGCONTEXTA *ctx)
     ctx->lcMsgBase = 0x7ff0;
     ctx->lcDevice = 0;
     ctx->lcPktRate = 64;
-    ctx->lcPktData = PK_CURSOR | PK_X | PK_Y | PK_NORMAL_PRESSURE;
+	ctx->lcPktData = PK_CURSOR | PK_X | PK_Y | PK_BUTTONS; // | PK_NORMAL_PRESSURE
     ctx->lcPktMode = 0;
     ctx->lcMoveMask = ctx->lcPktData;
-    ctx->lcBtnDnMask = 0xffffffff;
-    ctx->lcBtnUpMask = 0xffffffff;
+	ctx->lcBtnDnMask = 0xF8; // 11111000 5 btns for 5 btn pucks
+	ctx->lcBtnUpMask = 0xF8; // 11111000 5 btns
     ctx->lcInOrgX = 0;
     ctx->lcInOrgY = 0;
     ctx->lcInOrgZ = 0;
-    ctx->lcInExtX = screen_width = GetSystemMetrics(SM_CXSCREEN) * 1000;
-    ctx->lcInExtY = screen_height = GetSystemMetrics(SM_CYSCREEN) * 1000;
+	ctx->lcInExtX = tablet_width;
+	ctx->lcInExtY = tablet_height;
     ctx->lcInExtZ = 0;
     ctx->lcOutOrgX = ctx->lcInOrgX;
     ctx->lcOutOrgY = ctx->lcInOrgY;
@@ -164,11 +178,11 @@ static BOOL update_screen_metrics(LOGCONTEXTA *ctx)
     BOOL changed = FALSE;
     // he gets width and height of a default(?) screen
     // I kinda get it, he assumes, that win8 touch events are pixel based, so he sets Context size to the same values, but I can choose any value I want. right?
-    //  int width = screen_width = GetSystemMetrics(SM_CXSCREEN);
-    //  int height = screen_height = GetSystemMetrics(SM_CYSCREEN);
+    //  int width = tablet_width = GetSystemMetrics(SM_CXSCREEN);
+    //  int height = tablet_height = GetSystemMetrics(SM_CYSCREEN);
 
     // some useless log file line
-    LogEntry("screen metrics, width: %d, height: %d\n", screen_width, screen_height);
+    LogEntry("screen metrics, width: %d, height: %d\n", tablet_width, tablet_height);
 
     //  // sets those values we initialised at the start if resolution have changed
     //  if (ctx->lcInExtX != width) {
@@ -459,15 +473,15 @@ static UINT copy_dword(LPVOID lpOutput, DWORD nVal)
     return sizeof(DWORD);
 }
 
-static UINT copy_strw(LPVOID lpOutput, CHAR *str)
+static UINT copy_strw(LPVOID lpOutput, wchar_t *str)
 {
     int ret = 0;
     if (lpOutput) {
-        wchar_t *out = (wchar_t *)lpOutput;
-        _snwprintf_s(out, MAX_STRING_BYTES, _TRUNCATE, L"%s", str);
-        out[MAX_STRING_BYTES - 1] = L'\0';
+		wchar_t *out = (wchar_t *)lpOutput;
+        _snwprintf_s(out, MAX_STRING_BYTES, _TRUNCATE, str);
+		//out[MAX_STRING_BYTES - 1] = L'\0';
     }
-    return ((strlen(str) + 1) * sizeof(wchar_t));
+    return ((wcslen(str)) * sizeof(wchar_t));
 }
 
 static UINT copy_stra(LPVOID lpOutput, CHAR *str)
@@ -664,90 +678,16 @@ static void adjustPressure(packet_data_t *pkt)
     }
 }
 
-// this is where the HELL begins
-static BOOL handleMessage(UINT32 pointerId, POINTER_INPUT_TYPE pointerType, BOOL leavingWindow, LPMSG msg)
-{
-   // const UINT n_buttons = 5;
-   // POINTER_PEN_INFO info;
-   // packet_data_t pkt;
-   // BOOL buttons[n_buttons];
-   // BOOL contact = FALSE;
-   // BOOL ret;
-   // UINT i;
-
-   // for (i = 0; i < n_buttons; ++i)
-   //     buttons[i] = FALSE;
-
-   // //if (pointerType == PT_PEN) {
-   // //    // win8 only
-   // //    ret = GetPointerPenInfo(pointerId, &info);
-   // //    if (!leavingWindow) {
-   // //        buttons[0] = IS_POINTER_FIRSTBUTTON_WPARAM(msg->wParam);
-   // //        buttons[1] = IS_POINTER_SECONDBUTTON_WPARAM(msg->wParam);
-   // //        buttons[2] = IS_POINTER_THIRDBUTTON_WPARAM(msg->wParam);
-   // //        buttons[3] = IS_POINTER_FOURTHBUTTON_WPARAM(msg->wParam);
-   // //        buttons[4] = IS_POINTER_FIFTHBUTTON_WPARAM(msg->wParam);
-   // //        contact = IS_POINTER_INCONTACT_WPARAM(msg->wParam);
-   // //    }
-   // //} else {
-   // //ret = GetPointerInfo(pointerId, &(info.pointerInfo));
-   // info.penFlags = 0;
-   // info.penMask = 0;
-   // info.pressure = 0;
-   // info.rotation = 0;
-   // info.tiltX = 0;
-   // info.tiltY = 0;
-   // if (!leavingWindow) {
-   //     buttons[0] = msg->lParam == 0x0001;
-   //     buttons[1] = msg->lParam == 0x0002;
-   //     buttons[2] = msg->lParam == 0x0010;
-   //     contact = (buttons[0] || buttons[1] || buttons[2]);
-   //     info.pressure = contact ? 100 : 0;
-   // }
-   // //}
-
-   // pkt.serial = 0;
-   // pkt.contact = contact;
-
-
-   // // x 1 - 4485260
-   // // y 0 - 1634936
-   // pkt.x = ((GET_X_LPARAM(msg->lParam) - 6) * 1000) + 666;
-   // pkt.y = ((GET_Y_LPARAM(msg->lParam) - 6) * 1000) + 666; //ctx[0]->lcInExtY - 
-   // pkt.pressure = info.pressure;
-   // pkt.time = GetTickCount();
-   // pkt.buttons = (buttons[0] ? SBN_LCLICK : 0)
-   //     | (buttons[1] ? SBN_RCLICK : 0)
-   //     | (buttons[2] ? SBN_MCLICK : 0);
-
-   // /// do we need to do the following?
-   // /// SkipPointerFrameMessages(info.pointerInfo.frameId);
-
-   // // adjusts values according to settings
-   // adjustPosition(&pkt);
-   // adjustPressure(&pkt);
-
-   // // And FINALLY posts wintab message according to values we got from windows touch
-   // if (enqueue_packet(&pkt)) {
-   //     LogEntry("queued packet\n");
-   //     //LogPacket(&pkt);
-   //     if (window)
-			//PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[0]);
-   //     return TRUE;
-   // }
-   // else {
-   //     // packet is probably duplicate, or the queue has been deleted
-   //     return FALSE;
-   // }
-}
-
 static void eraseMessage(LPMSG msg)
 {
-    // we can't actually delete messages, so change its type
-    //if (logging && debug)
-    //    LogEntry("erase %04x\n", msg->message);
-    msg->message = 0x0;
+	// we can't actually delete messages, so change its type
+	//if (logging && debug)
+	//    LogEntry("erase %04x\n", msg->message);
+	msg->message = 0x0;
 }
+
+
+
 
 static void setWindowFeedback(HWND hWnd)
 {
@@ -772,7 +712,7 @@ static void setWindowFeedback(HWND hWnd)
         //    sizeof(BOOL), 
         //    &setting
         //);
-        LogEntry(" setting: %d, ret: %d\n", settings[i], ret);
+        //LogEntry(" setting: %d, ret: %d\n", settings[i], ret);
     }
 }
 
@@ -823,11 +763,55 @@ LRESULT CALLBACK emuHookProc(int nCode, WPARAM wParam, LPARAM lParam)
         LPARAM ext;
 
         switch (msg->message) {
-		// we might need this to emulate wintab clicks
-        case WM_MOUSEMOVE:
-        case WM_NCMOUSEMOVE:
-                //eraseMessage(msg);
-            break;
+		//this handles MOUSE buttons, for now it's the default behaviour, pointer from TUIO, buttons from mouse.
+		//in future versions this should become an option loaded from the wintab32.ini file
+			//if (pointerType == PT_PEN) {
+			//    // win8 only
+			//    ret = GetPointerPenInfo(pointerId, &info);
+			//    if (!leavingWindow) {
+			//        buttons[0] = IS_POINTER_FIRSTBUTTON_WPARAM(msg->wParam);
+			//        buttons[1] = IS_POINTER_SECONDBUTTON_WPARAM(msg->wParam);
+			//        buttons[2] = IS_POINTER_THIRDBUTTON_WPARAM(msg->wParam);
+			//        buttons[3] = IS_POINTER_FOURTHBUTTON_WPARAM(msg->wParam);
+			//        buttons[4] = IS_POINTER_FIFTHBUTTON_WPARAM(msg->wParam);
+			//        contact = IS_POINTER_INCONTACT_WPARAM(msg->wParam);
+			//    }
+			//} else 
+
+			/// do we need to do the following?
+			/// SkipPointerFrameMessages(info.pointerInfo.frameId);
+
+			case WM_LBUTTONDBLCLK:
+			case WM_RBUTTONDBLCLK:
+			case WM_NCLBUTTONDBLCLK:
+			case WM_NCRBUTTONDBLCLK:
+			case WM_LBUTTONDOWN:
+			case WM_NCLBUTTONDOWN:
+			case WM_LBUTTONUP:
+			case WM_NCLBUTTONUP:
+			case WM_RBUTTONDOWN:
+			case WM_NCRBUTTONDOWN:
+			case WM_RBUTTONUP:
+			case WM_NCRBUTTONUP:
+			case WM_MBUTTONDOWN:
+			case WM_MBUTTONUP:
+			case WM_MBUTTONDBLCLK:
+				//if (!leavingWindow) {
+				LDOWN = msg->wParam == 0x0001;
+				RDOWN = msg->wParam == 0x0002;
+				MDOWN = msg->wParam == 0x0010;
+				//}
+				//we only need to delete mouse button events if there is a tuio cursor at the tablet surface currently
+				//if it's not on a table then we're going to grab some mouse to manipulate some things with it
+				if (TUIOCURSOR) {
+					eraseMessage(msg);
+				}
+				break;
+			//case WM_NCMOUSELEAVE:
+				//ext = GetMessageExtraInfo();
+				//leavingWindow = (msg->message == WM_NCMOUSELEAVE);
+				//LogEntry("%p %p %04x wParam:%x lParam:%x ext:%x, ignore: %d\n", hook, msg->hwnd, msg->message, msg->wParam, msg->lParam, ext, ignore);
+				//LogEntry(" x:%d y:%d\n", GET_X_LPARAM(msg->lParam), GET_Y_LPARAM(msg->lParam));
         default:
             break;
         }
@@ -870,17 +854,17 @@ static int findThreadsForHooking(void)
     return n;
 }
 
-// so it hooks all threads and listens to messages, both ways I guess?
-// 
+// I've heard that hooks are slow, but at this pont I just need a working driver, so we'll stick to this
+// hmmmm, we actually can duplicate wintab messages with mouse events when any button isn't pressed so that way cursor will be visible and at the same time will not interfere with precise drawing process
 static void installHook(int id, hook_t *hook)
 {
-    //hook->handle = SetWindowsHookEx(
-    //    WH_GETMESSAGE, //WH_CALLWNDPROCRET,
-    //    emuHookProc,
-    //    NULL,
-    //    hook->thread
-    //    );
-    // LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
+    hook->handle = SetWindowsHookEx(
+        WH_GETMESSAGE, //WH_CALLWNDPROCRET,
+        emuHookProc,
+        NULL,
+        hook->thread
+        );
+     LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
 }
 
 // hmmm, it hooks something
@@ -977,7 +961,7 @@ static void enableProcessing(void)
 {
 	
     if (!enabled) {
-        //installHooks();
+        installHooks();
 		setupReceiver();
         enabled = TRUE;
     }
@@ -988,7 +972,7 @@ static void disableProcessing(BOOL hard)
 {
     processing = FALSE;
     if (hard) {
-        //uninstallHooks();
+        uninstallHooks();
         enabled = FALSE;
     }
 }
@@ -1112,6 +1096,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 	if (lpOutput == NULL){
 		return 1; //we need to return the required buffer size
 	}
+
     switch (wCategory) {
 		case 0:
 			ret = TRUE;  //if program just checks if wintab exists
@@ -1126,7 +1111,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				case IFC_WINTABID:
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "CCV Multitouch Tablet 1.5");
+						ret = copy_strw(lpOutput, L"CCV Multitouch Tablet 1.5");
 					}
 					else {
 						ret = copy_stra(lpOutput, "CCV Multitouch Tablet 1.5");
@@ -1194,16 +1179,17 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				default:
 					//The problem with inkscape is that it tries to find any active pen by adding a number to 200 up until it reaches some sky high number
+					//actually it was my bug
 					break;
 			}
 			break;
+		//all these are default contexts
+		//WTI_DDCTXS and WTI_DSCTXS are multiplex categories! 400-499, 500-599
 		case WTI_DEFCONTEXT:
 		case WTI_DEFSYSCTX:
 		case WTI_DDCTXS:
 		case WTI_DDCTX_1:
 		case WTI_DDCTX_2:
-			//after 500 (system Context) it asks for 400,401,402 (digitizing Context) and fails
-			//multiplex categories! 400-499, 500-599
 		case WTI_DSCTXS:
 			switch (nIndex) {
 				case 0:
@@ -1220,73 +1206,106 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					//Returns option flags.
 					//For the default digitizing Context, CXO_MARGIN and CXO_MGNINSIDE are allowed.
 					//For the default system Context, CXO_SYSTEM is required; CXO_PEN, CXO_MARGIN, and CXO_MGNINSIDE are allowed.
-					ret = default_context.lcOptions;
+					ret = copy_uint(lpOutput, default_context.lcOptions);
 					break;
 				case CTX_STATUS:
+					ret = copy_uint(lpOutput, default_context.lcStatus);
 					break;
 				case CTX_LOCKS:
+					ret = copy_uint(lpOutput, default_context.lcLocks);
 					break;
 				case CTX_MSGBASE:
+					ret = copy_uint(lpOutput, default_context.lcMsgBase);
 					break;
 				case CTX_DEVICE:
+					ret = copy_uint(lpOutput, default_context.lcDevice);
 					break;
 				case CTX_PKTRATE:
+					ret = copy_uint(lpOutput, default_context.lcPktRate);
 					break;
 				case CTX_PKTDATA:
+					ret = copy_uint(lpOutput, default_context.lcPktData);
 					break;
 				case CTX_PKTMODE:
+					ret = copy_uint(lpOutput, default_context.lcPktMode);
 					break;
 				case CTX_MOVEMASK:
+					ret = copy_dword(lpOutput, default_context.lcMoveMask);
 					break;
 				case CTX_BTNDNMASK:
+					ret = copy_dword(lpOutput, default_context.lcBtnDnMask);
 					break;
 				case CTX_BTNUPMASK:
+					ret = copy_dword(lpOutput, default_context.lcBtnUpMask);
 					break;
 				case CTX_INORGX:
+					ret = copy_uint(lpOutput, default_context.lcInOrgX);
 					break;
 				case CTX_INORGY:
+					ret = copy_uint(lpOutput, default_context.lcInOrgY);
 					break;
 				case CTX_INORGZ:
+					ret = copy_uint(lpOutput, default_context.lcInOrgZ);
 					break;
 				case CTX_INEXTX:
+					ret = copy_uint(lpOutput, default_context.lcInExtX);
 					break;
 				case CTX_INEXTY:
+					ret = copy_uint(lpOutput, default_context.lcInExtY);
 					break;
 				case CTX_INEXTZ:
+					ret = copy_uint(lpOutput, default_context.lcInExtZ);
 					break;
 				case CTX_OUTORGX:
+					ret = copy_uint(lpOutput, default_context.lcOutOrgX);
 					break;
 				case CTX_OUTORGY:
+					ret = copy_uint(lpOutput, default_context.lcOutOrgY);
 					break;
 				case CTX_OUTORGZ:
+					ret = copy_uint(lpOutput, default_context.lcOutOrgZ);
 					break;
 				case CTX_OUTEXTX:
+					ret = copy_uint(lpOutput, default_context.lcOutExtX);
 					break;
 				case CTX_OUTEXTY:
+					ret = copy_uint(lpOutput, default_context.lcOutExtY);
 					break;
 				case CTX_OUTEXTZ:
+					ret = copy_uint(lpOutput, default_context.lcOutExtZ);
 					break;
 				case CTX_SENSX:
+					ret = copy_uint(lpOutput, default_context.lcSensX);
 					break;
 				case CTX_SENSY:
+					ret = copy_uint(lpOutput, default_context.lcSensY);
 					break;
 				case CTX_SENSZ:
+					ret = copy_uint(lpOutput, default_context.lcSensZ);
 					break;
 				case CTX_SYSMODE:
+					ret = copy_uint(lpOutput, default_context.lcSysMode);
 					break;
 				case CTX_SYSORGX:
+					ret = copy_uint(lpOutput, default_context.lcSysOrgX);
 					break;
 				case CTX_SYSORGY:
+					ret = copy_uint(lpOutput, default_context.lcSysOrgY);
 					break;
 				case CTX_SYSEXTX:
+					ret = copy_uint(lpOutput, default_context.lcSysExtX);
 					break;
 				case CTX_SYSEXTY:
+					ret = copy_uint(lpOutput, default_context.lcSysExtY);
 					break;
 				case CTX_SYSSENSX:
+					ret = copy_uint(lpOutput, default_context.lcSysSensX);
 					break;
 				case CTX_SYSSENSY:
+					ret = copy_uint(lpOutput, default_context.lcSysSensY);
 					break;
 				default:
+
 					//The problem with inkscape is that it tries to find any active pen by adding a number to 200 up until it reaches some sky high number
 					break;
 			}
@@ -1298,14 +1317,14 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 			switch (nIndex) {
 				case DVC_NAME:
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "TUIO to WINTAB interface");
+						ret = copy_strw(lpOutput, L"TUIO to WINTAB interface");
 					}
 					else {
 						ret = copy_stra(lpOutput, "TUIO to WINTAB interface");
 					}
 					break;
 				case DVC_HARDWARE:
-					ret = copy_uint(lpOutput, HWC_INTEGRATED);
+					ret = copy_uint(lpOutput, HWC_INTEGRATED | HWC_TOUCH);
 					//HWC_INTEGRATED Indicates that the display and digitizer share the same surface.
 					//HWC_TOUCH Indicates that the cursor must be in physical contact with the device to report position.
 					//HWC_HARDPROX Indicates that device can generate events when the cursor is entering and leaving the physical detection range.
@@ -1331,16 +1350,17 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				//AXIS  Each returns the tablet's range and resolution capabilities, in the x, y, and z axes, respectively.
 				case DVC_X:
-					ret = copy_axis(lpOutput, 0, 38.5, TU_CENTIMETERS, 0xA256AC7B);	// 1600*1000/38.5 = 41558.44155 = A256.AC7B
+					ret = copy_axis(lpOutput, 0, tablet_width, TU_NONE, 0xFFFF);	//65535 == 0xFFFF //38.5 TU_CENTIMETERS 1600*1000/38.5 = 41558.44155 = A256.AC7B  
 					break;
 				case DVC_Y:
-					ret = copy_axis(lpOutput, 0, 29, TU_CENTIMETERS, 0x793ABC93);	//900*1000/29 = 31034.48275 = 793A.BC93
+					ret = copy_axis(lpOutput, 0, tablet_height, TU_NONE, 0xFFFF);	//0xFFFF //29 TU_CENTIMETERS 900*1000/29 = 31034.48275 = 793A.BC93
 					break;
 				case DVC_Z:
 					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
 					break;
 				case DVC_NPRESSURE:
-					ret = copy_axis(lpOutput, 0, 1023, 0, 0); //0-1024
+					//ret = copy_axis(lpOutput, 0, 1023, 0, 0); //0-1024
+					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
 					break;
 				case DVC_TPRESSURE:
 					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
@@ -1353,7 +1373,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				case DVC_PNPID: /* 1.1 */
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "CCVTUIO");
+						ret = copy_strw(lpOutput, L"CCVTUIO");
 					}
 					else {
 						ret = copy_stra(lpOutput, "CCVTUIO");
@@ -1365,7 +1385,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 			switch (nIndex) {
 				case CSR_NAME:
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "TUIO puck");
+						ret = copy_strw(lpOutput, L"TUIO puck");
 					}
 					else {
 						ret = copy_stra(lpOutput, "TUIO puck");
@@ -1373,25 +1393,58 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				case CSR_ACTIVE:
 					ret = TRUE;
+					copy_int(lpOutput, TRUE);
 					break;
 				case CSR_PKTDATA:
+					//bit mask with options
+					ret = copy_dword(lpOutput, default_context.lcPktData);
+					break;
 				case CSR_BUTTONS:
+					ret = copy_uint(lpOutput, 5);
+					break;
 				case CSR_BUTTONBITS:
+					//BYTE  Returns the number of bits of raw button data returned by the hardware.
+					break;
 				case CSR_BTNNAMES:
+					//TCHAR[] Returns a list of zero - terminated strings containing the names of the cursor's buttons.
+					//The number of names in the list is the same as the number of buttons on the cursor.
+					//The names are sepa­rated by a single zero character; the list is terminated by two zero characters.
+					if (fUnicode) {
+						ret = copy_strw(lpOutput, L"btn_tip\0btn_rclick\0btn_eraser\0btn_four\0btn_five\0\0");
+					}
+					else {
+						ret = copy_stra(lpOutput, "btn_tip\0btn_rclick\0btn_eraser\0btn_four\0btn_five\0\0");
+					}
+					break;
 				case CSR_BUTTONMAP:
+					//BYTE[]  Returns a 32 byte array of logical button numbers, one for each physical button.
+					break;
 				case CSR_SYSBTNMAP:
+					//BYTE[]  Returns a 32 byte array of button action codes, one for each logical button.
+					break;
 				case CSR_NPBUTTON:
 				case CSR_NPBTNMARKS:
 				case CSR_NPRESPONSE:
 				case CSR_TPBUTTON:
 				case CSR_TPBTNMARKS:
 				case CSR_TPRESPONSE:
+					break;
 				case CSR_PHYSID: /* 1.1 */
+					//problims
+					//if (fUnicode) {
+					//	ret = copy_strw(lpOutput, L"CCVPUG1");
+					//}
+					//else {
+					//	ret = copy_stra(lpOutput, "CCVPUG1");
+					//}
+					break;
 				case CSR_MODE: /* 1.1 */
 				case CSR_MINPKTDATA: /* 1.1 */
 				case CSR_MINBUTTONS: /* 1.1 */
 				case CSR_CAPABILITIES: /* 1.1 */
+					break;
 				case CSR_TYPE: /* 1.2 */
+					ret = copy_uint(lpOutput, 0x0F06); //0x0802 general stylus, 0x0F06 5 button puck
 					break;
 			}
 			break;
@@ -1399,7 +1452,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 			switch (nIndex) {
 				case CSR_NAME:
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "TUIO pen");
+						ret = copy_strw(lpOutput, L"TUIO pen");
 					}
 					else {
 						ret = copy_stra(lpOutput, "TUIO pen");
@@ -1414,7 +1467,7 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 			switch (nIndex) {
 				case CSR_NAME:
 					if (fUnicode) {
-						ret = copy_strw(lpOutput, "TUIO eraser");
+						ret = copy_strw(lpOutput, L"TUIO eraser");
 					}
 					else {
 						ret = copy_stra(lpOutput, "TUIO eraser");
@@ -1689,10 +1742,6 @@ BOOL emuWTMgrClose(HMGR hMgr)
 
 
 
-static std::string _address("localhost");
-static bool _udp = true;
-static int _port = 3333;
-static BOOL listening = FALSE;
 
 // the problem was: after completing dllmain wipes everything that is not stored anywhere, so we have to store our thread somewhere
 // now it doesn't hang the application, but the problem is that it first says it binded to port and then says it cannot bind to port
@@ -1736,17 +1785,20 @@ void TuioToWinTab::removeTuioObject(TuioObject *tobj) {
 
 void TuioToWinTab::addTuioCursor(TuioCursor *tcur) {
 	LogEntry("add cur %d (%d/%d) %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
-	handleTuioMessage(tcur);
+	TUIOCURSOR = TRUE;
+	handleTuioMessage(tcur, NULL);
 }
 
 void TuioToWinTab::updateTuioCursor(TuioCursor *tcur) {
 	//LogEntry("set cur %d (%d/%d) %f %f    %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY(), tcur->getMotionSpeed(), tcur->getMotionAccel());
-	handleTuioMessage(tcur);
+	TUIOCURSOR = TRUE;
+	handleTuioMessage(tcur, NULL);
 }
 
 void TuioToWinTab::removeTuioCursor(TuioCursor *tcur) {
-	LogEntry("del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID());
-	//handleTuioMessage(tcur);
+	LogEntry("del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
+	TUIOCURSOR = FALSE;
+	handleTuioMessage(tcur,NULL);
 }
 
 void TuioToWinTab::addTuioBlob(TuioBlob *tblb) {
@@ -1766,20 +1818,34 @@ void  TuioToWinTab::refresh(TuioTime frameTime) {
 
 }
 
-static BOOL handleTuioMessage(TuioCursor *tcur)
+//THIS SHIT DOESN'T WORK CURSOR DOESN'T MOVE
+//static BOOL CALLBACK moveCursorForThreadWindow(HWND hWnd, LPARAM lParam)
+//{
+//	PostMessage(hWnd, WM_MOUSEMOVE, 0x0000, lParam);
+//	PostMessage(hWnd, WM_NCMOUSEMOVE, 0x0000, lParam);
+//	return TRUE;
+//}
+//
+//static BOOL CALLBACK moveCursorForChildWindows(HWND hWnd, LPARAM lParam)
+//{
+//	moveCursorForThreadWindow(hWnd, lParam);
+//	EnumChildWindows(hWnd, moveCursorForThreadWindow, lParam);
+//}
+//
+//static void moveCursor(float x, float y){
+//	int i;
+//	LPARAM lParam = MAKELPARAM((int)x, (int)y);
+//	for (i = 0; i < MAX_HOOKS; ++i) {
+//		if (hooks[i].thread)
+//			EnumThreadWindows(hooks[i].thread, moveCursorForThreadWindow, lParam);
+//	}
+//}
+
+static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure)
 {
-	const UINT n_buttons = 5;
-	//POINTER_PEN_INFO info;
 	packet_data_t pkt;
-	BOOL buttons[n_buttons];
-	BOOL contact = FALSE;
 	BOOL ret;
 	UINT i;
-	UINT32 pressure = 1023; //for debug purposes for now
-
-	for (i = 0; i < n_buttons; ++i)
-		buttons[i] = FALSE;
-
 	//info.penFlags = 0;
 	//info.penMask = 0;
 	//info.pressure = 0;
@@ -1793,18 +1859,15 @@ static BOOL handleTuioMessage(TuioCursor *tcur)
 	//	contact = (buttons[0] || buttons[1] || buttons[2]);
 	//	info.pressure = contact ? 100 : 0;
 	//}
-
 	pkt.serial = 0;
-	pkt.contact = contact;
-
-	pkt.x = screen_width * tcur->getX();
-	pkt.y = screen_height - screen_height * tcur->getY(); //ctx[N]->lcInExtY - 
-	pkt.pressure = pressure;
+	pkt.contact = LDOWN || RDOWN || MDOWN;//TUIOCURSOR;//;
+	pkt.pressure = pkt.contact ? max_pressure : min_pressure;
+	pkt.buttons = (LDOWN ? SBN_LCLICK : SBN_NONE) | (RDOWN ? SBN_RCLICK : SBN_NONE) | (MDOWN ? SBN_MCLICK : SBN_NONE);
+	// for some reason gtk+ treats both SBN_RCLICK and SBN_MCLICK as middle click and zooms in. no idea why
+	pkt.x = tablet_width * tcur->getX();
+	pkt.y = tablet_height * tcur->getY(); /*tablet_height -*/ //ctx[N]->lcInExtY
 	pkt.time = GetTickCount();
-	pkt.buttons = (buttons[0] ? SBN_LCLICK : 0)
-		| (buttons[1] ? SBN_RCLICK : 0)
-		| (buttons[2] ? SBN_MCLICK : 0);
-
+	
 	// adjusts values according to settings
 	//adjustPosition(&pkt);
 	//adjustPressure(&pkt);
@@ -1815,16 +1878,29 @@ static BOOL handleTuioMessage(TuioCursor *tcur)
 		//LogPacket(&pkt);
 		if (window){
 			for (auto c=0; c<ctx.size(); c++){
-				PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[c]); //for some reason the test app opens two contexts, that's why tests fail
+				PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[c]);
+				//for some reason the test app opens two contexts, that's why tests fail
 				//An application can open more than one Context, but most only need one.
 				//Applications can customize their contexts, or they can open a Context using a default Context specification that is always available.
 				//The WTInfo function provides access to the default Context specification.
 				//contexts could be passive or active, so we need to store settings separately
 			}
 		}
+		if (!pkt.contact){
+			//for (i = 0; i < MAX_HOOKS; ++i) {
+			//	hook = hooks[i].thread;
+			//}
+			//window? and what is window here, opened context? I guess it's fake window, that's why it doesn't work
+			//moveCursor( screen_width*tcur->getX(), screen_height*tcur->getY() );
+			//this doesn't work for some reason
+			// need to find a way to get source window handler from dll
+			// we need to also send mouse cursor movement when no buttons are pressed, well, to at least see where we placed it
+			// WM_MOUSEMOVE:
+			// WM_NCMOUSEMOVE:
+		}
 		return TRUE;
 		// does it only post a packet to queue, or posts it directly to window?
-		//both
+			//both
 	}
 	else {
 		// packet is probably duplicate, or the queue has been deleted

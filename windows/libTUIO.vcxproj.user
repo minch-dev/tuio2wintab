@@ -1,14 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LocalDebuggerCommand>A:\BUILD\TUIOSTANDALONE\windows\Debug\Win32\sai.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>C:\gtk-build\gtk\Win32\release\bin\gtk3-demo.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>C:\gtk-build\gtk\Win32\release\bin\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerCommand>C:\gtk-build\gtk\Win32\release\bin\gtk3-demo.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LocalDebuggerCommand>A:\BUILD\WintabDN.NET.API\bin\Release\FormTestApp.exe</LocalDebuggerCommand>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>C:\Inkscape091\inkscape.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments> &gt;A:\BUILD\wintab32_stdout.log 2&gt;A:\BUILD\wintab32_sterr.log</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>C:\Inkscape091\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
