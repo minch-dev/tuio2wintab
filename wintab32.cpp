@@ -1053,6 +1053,14 @@ static void LogBytes(LPVOID lpData, UINT nBytes)
 	fprintf(fhLog, "\n");
 }
 
+//BOOL WritePrivateProfileInt(LPCTSTR lpAppName, LPCTSTR lpKeyName, int Value, LPCTSTR lpFileName){
+//	char Buffer[256];
+//	//_itoa(Value, Buffer, 10);
+//	sprintf(Buffer, "%i", Value);
+//	return WritePrivateProfileString(lpAppName, lpKeyName, (LPCWSTR)Buffer, lpFileName);
+//}
+
+
 // gets ini path?
 static void getINIPath(TCHAR *out, UINT length)
 {
@@ -1065,6 +1073,13 @@ static void getINIPath(TCHAR *out, UINT length)
 // MMMkay, it sets defaults before loading .ini file
 static void SetDefaults(emu_settings_t *settings)
 {
+	//these are the switches
+	settings->tuio_udp = 1;
+	settings->tuio_udp_port = 3333;
+	settings->tuio_tcp = 0;
+	settings->tuio_tcp_port = 3000;
+	settings->tuio_mouse = 0; //0=nomouse,1=mouseOnly,2=mousePlusWintab
+
     settings->disableFeedback       = TRUE;
     settings->disableGestures       = TRUE;
     settings->shiftX                = 0;
@@ -1073,7 +1088,7 @@ static void SetDefaults(emu_settings_t *settings)
     settings->pressureMin           = 0;
     settings->pressureMax           = 1023;
     settings->pressureCurve         = FALSE;
-    //looks like it recogniaes 5 lvls of pressure
+    //looks like it recognises 5 lvls of pressure
     settings->pressurePoint[0]      = 0;
     settings->pressurePoint[1]      = 253;
     settings->pressurePoint[2]      = 511;
@@ -1084,15 +1099,39 @@ static void SetDefaults(emu_settings_t *settings)
     settings->pressureValue[2]      = 511;
     settings->pressureValue[3]      = 767;
     settings->pressureValue[4]      = 1023;
+
+	//these are calculated or environment based one way or another
+	settings->screen_width = 1024;
+	settings->screen_height = 768;
+	settings->tuio_x = 0.0;
+	settings->tuio_y = 0.0;
+	settings->tuio_w = 1.0;
+	settings->tuio_h = 1.0;
+
+	settings->wintab_x = 0;
+	settings->wintab_y = 0;
+	settings->wintab_w = 0xffff;
+	settings->wintab_h = 0xffff;
+
+	//these are set in stone, but it doesn't hurt to include em
+	settings->mouse_x = 0;
+	settings->mouse_y = 0;
+	settings->mouse_w = 0xffff;
+	settings->mouse_h = 0xffff;
+	settings->tablet_height = 0xffff;
+	settings->tablet_width = 0xffff;
+	logFile = DEFAULT_LOG_FILE;
 }
 
 // this whole wall of text just to load .ini file
+// need to make this part work for my config settings to make .ini useful
 static void LoadSettings(emu_settings_t *settings)
 {
     const UINT stringLength = MAX_PATH;
     TCHAR iniPath[MAX_PATH];
     DWORD dwRet;
     UINT nRet;
+	float fRet;
 
     getINIPath(iniPath, MAX_PATH);
     
@@ -1113,154 +1152,297 @@ static void LoadSettings(emu_settings_t *settings)
         stringLength,
         iniPath
     );
-    
-    nRet = GetPrivateProfileInt(
-        _T("Emulation"),
-        _T("Mode"),
-        useEmulation ? 1 : 0,
-        iniPath
-    );
-    useEmulation = (nRet != 0);
-    
-    nRet = GetPrivateProfileInt(
-        _T("Emulation"),
-        _T("Debug"),
-        debug ? 1 : 0,
-        iniPath
-    );
-    debug = (nRet != 0);
 
-    wintabDLL = (TCHAR *) malloc(sizeof(TCHAR) * stringLength);
-    dwRet = GetPrivateProfileString(
-        _T("Emulation"),
-        _T("WintabDLL"),
-        DEFAULT_LOG_FILE,
-        wintabDLL,
-        stringLength,
-        iniPath
-    );
-    
-    nRet = GetPrivateProfileInt(
-        _T("Emulation"),
-        _T("DisableFeedback"),
-        settings->disableFeedback ? 1 : 0,
-        iniPath
-    );
-    settings->disableFeedback = (nRet != 0);
-    
-    nRet = GetPrivateProfileInt(
-        _T("Emulation"),
-        _T("DisableGestures"),
-        settings->disableGestures ? 1 : 0,
-        iniPath
-    );
-    settings->disableGestures = (nRet != 0);
-    
-    // Adjustment of positions
-    settings->shiftX = GetPrivateProfileInt(
-        _T("Adjust"), _T("ShiftX"),
-        settings->shiftX,
-        iniPath
-    );
-    settings->shiftY = GetPrivateProfileInt(
-        _T("Adjust"), _T("ShiftY"),
-        settings->shiftY,
-        iniPath
-    );
-    
-    // Pressure clamping
-    nRet = GetPrivateProfileInt(
-        _T("Adjust"),
-        _T("PressureExpand"),
-        settings->pressureExpand ? 1 : 0,
-        iniPath
-    );
-    settings->pressureExpand = (nRet != 0);
-    
-    settings->pressureMin = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureMin"),
-        settings->pressureMin,
-        iniPath
-    );
-    settings->pressureMax = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureMax"),
-        settings->pressureMax,
-        iniPath
-    );
 
-    // Pressure curve
-    nRet = GetPrivateProfileInt(
-        _T("Adjust"),
-        _T("PressureCurve"),
-        settings->pressureCurve ? 1 : 0,
-        iniPath
-    );
-    settings->pressureCurve = (nRet != 0);
+	//we can't normaly store floating point numbers in ini files with these
+	//built in methods and libraries are a pain in the ass, so we just store
+	//it like this tuio_x=0507234 tuio_w=9130515 and divide those by 10000000 to get the floats
+	//lame? i don't give a fuck!
 
-    settings->pressurePoint[0] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP0"),
-        settings->pressurePoint[0],
-        iniPath
-    );
-    settings->pressureValue[0] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP0V"),
-        settings->pressureValue[0],
-        iniPath
-    );
-    settings->pressurePoint[1] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP1"),
-        settings->pressurePoint[1],
-        iniPath
-    );
-    settings->pressureValue[1] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP1V"),
-        settings->pressureValue[1],
-        iniPath
-    );
-    settings->pressurePoint[2] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP2"),
-        settings->pressurePoint[2],
-        iniPath
-    );
-    settings->pressureValue[2] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP2V"),
-        settings->pressureValue[2],
-        iniPath
-    );
-    settings->pressurePoint[3] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP3"),
-        settings->pressurePoint[3],
-        iniPath
-    );
-    settings->pressureValue[3] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP3V"),
-        settings->pressureValue[3],
-        iniPath
-    );
-    settings->pressurePoint[4] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP4"),
-        settings->pressurePoint[4],
-        iniPath
-    );
-    settings->pressureValue[4] = GetPrivateProfileInt(
-        _T("Adjust"), _T("PressureCurveP4V"),
-        settings->pressureValue[4],
-        iniPath
-    );
+
+
+	settings->tuio_mouse = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_mouse"),
+		settings->tuio_mouse,
+		iniPath
+		);
+	settings->tuio_udp = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_udp"),
+		settings->tuio_udp,
+		iniPath
+		);
+	settings->tuio_udp_port = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_udp_port"),
+		settings->tuio_udp_port,
+		iniPath
+		);
+	settings->tuio_tcp = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_tcp"),
+		settings->tuio_tcp,
+		iniPath
+		);
+	settings->tuio_tcp_port = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_tcp_port"),
+		settings->tuio_tcp_port,
+		iniPath
+		);
+
+
+	nRet = GetPrivateProfileInt(
+		_T("Metrics"), _T("tuio_x"), -1, iniPath
+		);
+	if (nRet != -1){
+		settings->tuio_x = (float)nRet / 10000000;
+	}
+
+	nRet = GetPrivateProfileInt(
+		_T("Metrics"),_T("tuio_y"),-1,iniPath
+	);
+	if (nRet != -1){
+		settings->tuio_y = (float)nRet / 10000000;
+	}
+
+	nRet = GetPrivateProfileInt(
+		_T("Metrics"), _T("tuio_w"), -1, iniPath
+		);
+	if (nRet != -1){
+		settings->tuio_w = (float)nRet / 10000000;
+	}
+
+	nRet = GetPrivateProfileInt(
+		_T("Metrics"), _T("tuio_h"), -1, iniPath
+		);
+	if (nRet != -1){
+		settings->tuio_h = (float)nRet / 10000000;
+	}
+
+
+	settings->wintab_x = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("wintab_x"),
+		settings->wintab_x,
+		iniPath
+	);
+	settings->wintab_y = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("wintab_y"),
+		settings->wintab_y,
+		iniPath
+	);
+	settings->wintab_w = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("wintab_w"),
+		settings->wintab_w,
+		iniPath
+	);
+	settings->wintab_h = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("wintab_h"),
+		settings->wintab_h,
+		iniPath
+	);
+
+
+
+	settings->mouse_x = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("mouse_x"),
+		settings->mouse_x,
+		iniPath
+	);
+	settings->mouse_y = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("mouse_y"),
+		settings->mouse_y,
+		iniPath
+	);
+	settings->mouse_w = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("mouse_w"),
+		settings->mouse_w,
+		iniPath
+	);
+	settings->mouse_h = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("mouse_h"),
+		settings->mouse_h,
+		iniPath
+	);
+
+	settings->tablet_height = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("tablet_height"),
+		settings->tablet_height,
+		iniPath
+	);
+	settings->tablet_width = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("tablet_width"),
+		settings->tablet_width,
+		iniPath
+	);
+
+    //nRet = GetPrivateProfileInt(
+    //    _T("Emulation"),
+    //    _T("Mode"),
+    //    useEmulation ? 1 : 0,
+    //    iniPath
+    //);
+    //useEmulation = (nRet != 0);
+    
+    //nRet = GetPrivateProfileInt(
+    //    _T("Emulation"),
+    //    _T("Debug"),
+    //    debug ? 1 : 0,
+    //    iniPath
+    //);
+    //debug = (nRet != 0);
+
+    //wintabDLL = (TCHAR *) malloc(sizeof(TCHAR) * stringLength);
+    //dwRet = GetPrivateProfileString(
+    //    _T("Emulation"),
+    //    _T("WintabDLL"),
+    //    DEFAULT_LOG_FILE,
+    //    wintabDLL,
+    //    stringLength,
+    //    iniPath
+    //);
+    //
+    //nRet = GetPrivateProfileInt(
+    //    _T("Emulation"),
+    //    _T("DisableFeedback"),
+    //    settings->disableFeedback ? 1 : 0,
+    //    iniPath
+    //);
+    //settings->disableFeedback = (nRet != 0);
+    //
+    //nRet = GetPrivateProfileInt(
+    //    _T("Emulation"),
+    //    _T("DisableGestures"),
+    //    settings->disableGestures ? 1 : 0,
+    //    iniPath
+    //);
+    //settings->disableGestures = (nRet != 0);
+    //
+    //// Adjustment of positions
+    //settings->shiftX = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("ShiftX"),
+    //    settings->shiftX,
+    //    iniPath
+    //);
+    //settings->shiftY = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("ShiftY"),
+    //    settings->shiftY,
+    //    iniPath
+    //);
+    //
+    //// Pressure clamping
+    //nRet = GetPrivateProfileInt(
+    //    _T("Adjust"),
+    //    _T("PressureExpand"),
+    //    settings->pressureExpand ? 1 : 0,
+    //    iniPath
+    //);
+    //settings->pressureExpand = (nRet != 0);
+    //
+    //settings->pressureMin = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureMin"),
+    //    settings->pressureMin,
+    //    iniPath
+    //);
+    //settings->pressureMax = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureMax"),
+    //    settings->pressureMax,
+    //    iniPath
+    //);
+
+    //// Pressure curve
+    //nRet = GetPrivateProfileInt(
+    //    _T("Adjust"),
+    //    _T("PressureCurve"),
+    //    settings->pressureCurve ? 1 : 0,
+    //    iniPath
+    //);
+    //settings->pressureCurve = (nRet != 0);
+
+    //settings->pressurePoint[0] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP0"),
+    //    settings->pressurePoint[0],
+    //    iniPath
+    //);
+    //settings->pressureValue[0] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP0V"),
+    //    settings->pressureValue[0],
+    //    iniPath
+    //);
+    //settings->pressurePoint[1] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP1"),
+    //    settings->pressurePoint[1],
+    //    iniPath
+    //);
+    //settings->pressureValue[1] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP1V"),
+    //    settings->pressureValue[1],
+    //    iniPath
+    //);
+    //settings->pressurePoint[2] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP2"),
+    //    settings->pressurePoint[2],
+    //    iniPath
+    //);
+    //settings->pressureValue[2] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP2V"),
+    //    settings->pressureValue[2],
+    //    iniPath
+    //);
+    //settings->pressurePoint[3] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP3"),
+    //    settings->pressurePoint[3],
+    //    iniPath
+    //);
+    //settings->pressureValue[3] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP3V"),
+    //    settings->pressureValue[3],
+    //    iniPath
+    //);
+    //settings->pressurePoint[4] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP4"),
+    //    settings->pressurePoint[4],
+    //    iniPath
+    //);
+    //settings->pressureValue[4] = GetPrivateProfileInt(
+    //    _T("Adjust"), _T("PressureCurveP4V"),
+    //    settings->pressureValue[4],
+    //    iniPath
+    //);
 }
 
 // looks like this code is used everywhere
-// so if any function is called it first goes here and check if wintab is initialised and if not initialises it.
-static void Init(void)
+// so if any function is called it first goes here and checks if wintab is initialised and if not initialises it.
+// removing static from this one to be able to call it from dllmain directly
+void Init(void)
 {
     // defines variable to store settings and loads it from .ini file
     emu_settings_t settings;
     if (initialised) return;
     SetDefaults(&settings);
+	// let's LOG!
     LoadSettings(&settings);
+	OpenLogFile();
 
-    // let's LOG!
-    OpenLogFile();
+	LogEntry(
+		"tuio_mouse = %d, wintab_x = %d, wintab_y = %d, wintab_w = %d, wintab_h = %d, \n tuio_x = %f, tuio_y = %f, tuio_w = %f, tuio_h = %f, \n mouse_x = %d, mouse_y = %d, mouse_w = %d, mouse_h = %d \n tablet_height = %d, tablet_width = %d \n",
+		settings.tuio_mouse, settings.wintab_x, settings.wintab_y, settings.wintab_w, settings.wintab_h,
+		settings.tuio_x, settings.tuio_y, settings.tuio_w, settings.tuio_h,
+		settings.mouse_x, settings.mouse_y, settings.mouse_w, settings.mouse_h,
+		settings.tablet_height, settings.tablet_width
+	);
+	
     LogEntry(
         "init, logging = %d, debug = %d, useEmulation = %d\n", 
         logging, debug, useEmulation
@@ -1434,7 +1616,7 @@ BOOL API WTPacket(HCTX hCtx, UINT wSerial, LPVOID lpPkt)
     //    ret = origWTPacket(hCtx, wSerial, lpPkt);
     //}
 
-    LogEntry("WTPacket(%x, %x, %p) = %d\n", hCtx, wSerial, lpPkt, ret);
+    //LogEntry("WTPacket(%x, %x, %p) = %d\n", hCtx, wSerial, lpPkt, ret);
     //    if (ret) {
     //        LogBytes(lpPkt, PacketBytes(packetData, packetMode));
     //    }

@@ -42,12 +42,14 @@ of merchantability or fitness for any particular purpose.
 //
 #include <tlhelp32.h>
 #include <assert.h>
-
+#include <windows.h>
 #include "wintab.h"
 #include "pktdef.h"
 #include "logging.h"
 #include <wchar.h>
 
+// We already have a function to read/write .ini file in wintab32.cpp, but how do we use it in this case?
+// microsoft docs actually state that a dll can have an entry point function
 //my mistake is that I treat a DLL as a program running in memory, while DLL is just a library of functions\
 // that means there is no starting point here, external program wants some function -> gets it from this library -> it runs and returns results.
 // well, kind of, it must be more complicated than that
@@ -69,8 +71,8 @@ BOOL RDOWN = FALSE;
 BOOL MDOWN = FALSE;
 BOOL TUIOCURSOR = FALSE;
 
-static BOOL logging = TRUE;
-static BOOL debug = TRUE;
+static BOOL logging = FALSE;
+static BOOL debug = FALSE;
 
 typedef struct _packet_data_t {
     UINT serial;
@@ -90,7 +92,7 @@ typedef struct _hook_t {
 
 static BOOL enabled = FALSE;
 static BOOL processing = FALSE;
-static emu_settings_t config;
+static emu_settings_t config; // everything we actually need is stored here
 static HMODULE module = NULL;
 
 static HWND window = NULL;
@@ -104,9 +106,8 @@ static packet_data_t *queue = NULL;
 static UINT next_serial = 1;
 static UINT q_start, q_end, q_length;
 static CRITICAL_SECTION q_lock;
-static UINT tablet_height = 0xffff; //0xffff
-static UINT tablet_width = 0xffff;
 
+//these are not currently used and only needed for imprecise pixel based mouse movements (commented out)
 int screen_width = GetSystemMetrics(SM_CXSCREEN);
 int screen_height = GetSystemMetrics(SM_CYSCREEN);
 
@@ -116,16 +117,65 @@ static LPLOGCONTEXTA context = NULL;
 std::vector<LPLOGCONTEXTA> ctx;
 
 static std::string _address("localhost");
-static bool _udp = true;
-static int _port = 3333;
+static bool _udp = true; //settings->tuio_udp
+static int _port = 3333; //settings->tuio_udp_port
 static BOOL listening = FALSE;
 static UINT32 max_pressure = 1023;
 static UINT32 min_pressure = 0;
 //static LPLOGCONTEXTA contexts[MAX_CONTEXTS];
 
+//we need to determine window that we draw in
+//the format is 
+//+--------+
+//+   2    +	1600x900
+//+------+-+
+//+      +		1280x1024
+//+  1   +
+//+------+
+// 1600x1924
+// 1 is needed and also main monitor
+// TABLET -				x1=0.0507234 y1=0.0106992,  x2=0.9637749 y2=0.9905597 of 1.0f,  
+// mouse(main)			x1=0		 y1=0		 ,  w=65535  y2=65535 of 65535
+// wintab				x1=0		 y1=tablet_height*(900/(900+1024))	 ,  x2==tablet_width*(1280/1600)          y2=tablet_height
+
+//we need to determine window that we draw in
+//the format is 
+//+-------+
+//+   2   +		1360x768
+//+------++
+//+      +
+//+  1   +		1280x1024
+//+------+
+// 1600x1792
+// 1 is needed and also main monitor
+// TABLET -				x1=0.0507234 y1=0.0106992,  x2=0.9637749 y2=0.9905597 of 1.0f,  (precalculated for a given monitor/camera ratios)
+// mouse(main)			x1=0		 y1=0		 ,  w=65535  y2=65535 of 65535   (always the same)
+// wintab				x1=0		 y1=tablet_height*(768/(768+1024))	 ,  x2==tablet_width*(1280/1360)          y2=tablet_height
+
+//these are set in stone, not sure if we need them in config file
+//UINT mouse_x = 0;
+//UINT mouse_y = 0;
+//UINT mouse_w = 0xffff;
+//UINT mouse_h = 0xffff;
+//static UINT tablet_height = 0xffff; //0xffff
+//static UINT tablet_width = 0xffff;
+//
+////these are calulated
+//float tuio_x = 0.0507234f;
+//float tuio_y = 0.0106992f;
+//float tuio_w = 0.9130515f; //0.9637749-0.0507234
+//float tuio_h = 0.9798605f; //0.9905597-0.0106992f
+//
+//UINT wintab_x = 0;
+//UINT wintab_y = 30656;   //tablet_height(65535)*[900/(900+1024)](0.46777546777546777546777546777547)
+//UINT wintab_w = 52428;  // wintab_x2(65535*1280/1600)(0.8)-wintab_x(0)
+//UINT wintab_h = 34879; // wintab_y2(65535)-wintab_y(30656)
+//
 
 
-// check if our vector has needed context
+
+
+// check if our vector has the context we need
 BOOL ctxHas(HCTX hCtx){
 	context = (LPLOGCONTEXTA)hCtx;
 	return hCtx && std::find(ctx.begin(), ctx.end(), context) != ctx.end();
@@ -150,8 +200,8 @@ static void init_context(LOGCONTEXTA *ctx)
     ctx->lcInOrgX = 0;
     ctx->lcInOrgY = 0;
     ctx->lcInOrgZ = 0;
-	ctx->lcInExtX = tablet_width;
-	ctx->lcInExtY = tablet_height;
+	ctx->lcInExtX = config.tablet_width;
+	ctx->lcInExtY = config.tablet_height;
     ctx->lcInExtZ = 0;
     ctx->lcOutOrgX = ctx->lcInOrgX;
     ctx->lcOutOrgY = ctx->lcInOrgY;
@@ -178,11 +228,11 @@ static BOOL update_screen_metrics(LOGCONTEXTA *ctx)
     BOOL changed = FALSE;
     // he gets width and height of a default(?) screen
     // I kinda get it, he assumes, that win8 touch events are pixel based, so he sets Context size to the same values, but I can choose any value I want. right?
-    //  int width = tablet_width = GetSystemMetrics(SM_CXSCREEN);
-    //  int height = tablet_height = GetSystemMetrics(SM_CYSCREEN);
+    //  int width = config.tablet_width = GetSystemMetrics(SM_CXSCREEN);
+    //  int height = config.tablet_height = GetSystemMetrics(SM_CYSCREEN);
 
     // some useless log file line
-    LogEntry("screen metrics, width: %d, height: %d\n", tablet_width, tablet_height);
+	//LogEntry("screen metrics, width: %d, height: %d\n", area_width, area_height);
 
     //  // sets those values we initialised at the start if resolution have changed
     //  if (ctx->lcInExtX != width) {
@@ -632,6 +682,7 @@ static void adjustPosition(packet_data_t *pkt)
     pkt->y = pkt->y + config.shiftY;
 }
 
+//this one is unused and not needed
 static void adjustPressure(packet_data_t *pkt)
 {
     if (config.pressureCurve) {
@@ -702,7 +753,7 @@ static void setWindowFeedback(HWND hWnd)
     BOOL ret;
     int i;
 
-        LogEntry("configuring feedback for window: %p\n", hWnd);
+        //LogEntry("configuring feedback for window: %p\n", hWnd);
 
     for (i = 0; i < (sizeof(settings) / sizeof(FEEDBACK_TYPE)); ++i) {
         setting = FALSE;
@@ -803,10 +854,19 @@ LRESULT CALLBACK emuHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				//}
 				//we only need to delete mouse button events if there is a tuio cursor at the tablet surface currently
 				//if it's not on a table then we're going to grab some mouse to manipulate some things with it
-				if (TUIOCURSOR) {
+				//we leave it be if we emulate mouse
+				//not sure why, but eraseMessage doesn't prevent mouse from moving or clicking 
+				if ((config.tuio_mouse==0) && TUIOCURSOR) {
 					eraseMessage(msg);
 				}
 				break;
+			case WM_MOUSEMOVE:
+			case WM_NCMOUSEMOVE:
+				//we need mouse movement events while drawing only if we emulate mouse
+				//we leave it be if we emulate mouse
+				if ((config.tuio_mouse==0) && LDOWN && TUIOCURSOR){
+					eraseMessage(msg);
+				}
 			//case WM_NCMOUSELEAVE:
 				//ext = GetMessageExtraInfo();
 				//leavingWindow = (msg->message == WM_NCMOUSELEAVE);
@@ -864,7 +924,7 @@ static void installHook(int id, hook_t *hook)
         NULL,
         hook->thread
         );
-     LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
+    // LogEntry("hook %d, thread = %08x, handle = %p\n", id, hook->thread, hook->handle);
 }
 
 // hmmm, it hooks something
@@ -915,7 +975,7 @@ void emuEnableThread(DWORD thread)
     if (!enabled)
         return;
 
-    LogEntry("emuEnableThread(%08x)\n", thread);
+    //LogEntry("emuEnableThread(%08x)\n", thread);
 
     // find a free hook structure
     for (i = 0; i < MAX_HOOKS; ++i) {
@@ -942,7 +1002,7 @@ void emuDisableThread(DWORD thread)
     if (!enabled)
         return;
 
-    LogEntry("emuDisableThread(%08x)\n", thread);
+    //LogEntry("emuDisableThread(%08x)\n", thread);
 
     // find hook and remove it
     for (i = 0; i < MAX_HOOKS; ++i) {
@@ -1054,7 +1114,8 @@ void emuInit(BOOL fLogging, BOOL fDebug, emu_settings_t *settings)
     // let's have some wintab Context, amerite?
     init_context(&default_context);
     // checks if screen res changed and reports back the result and sets the values of some of the parameters we initialised before
-    //update_screen_metrics(&default_context);
+    
+	update_screen_metrics(&default_context);
 
     enabled = FALSE;
     processing = FALSE;
@@ -1350,10 +1411,10 @@ static UINT emuWTInfo(BOOL fUnicode, UINT wCategory, UINT nIndex, LPVOID lpOutpu
 					break;
 				//AXIS  Each returns the tablet's range and resolution capabilities, in the x, y, and z axes, respectively.
 				case DVC_X:
-					ret = copy_axis(lpOutput, 0, tablet_width, TU_NONE, 0xFFFF);	//65535 == 0xFFFF //38.5 TU_CENTIMETERS 1600*1000/38.5 = 41558.44155 = A256.AC7B  
+					ret = copy_axis(lpOutput, 0, config.tablet_width, TU_NONE, 0xFFFF);	//65535 == 0xFFFF //38.5 TU_CENTIMETERS 1600*1000/38.5 = 41558.44155 = A256.AC7B  
 					break;
 				case DVC_Y:
-					ret = copy_axis(lpOutput, 0, tablet_height, TU_NONE, 0xFFFF);	//0xFFFF //29 TU_CENTIMETERS 900*1000/29 = 31034.48275 = 793A.BC93
+					ret = copy_axis(lpOutput, 0, config.tablet_height, TU_NONE, 0xFFFF);	//0xFFFF //29 TU_CENTIMETERS 900*1000/29 = 31034.48275 = 793A.BC93
 					break;
 				case DVC_Z:
 					ret = copy_axis(lpOutput, 0, 0, 0, 0); //nothing
@@ -1772,19 +1833,19 @@ void setupReceiver(void){
 
 
 void TuioToWinTab::addTuioObject(TuioObject *tobj) {
-	LogEntry("add obj %d (%d/%d) %f %f %f\n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle());
+	//LogEntry("add obj %d (%d/%d) %f %f %f\n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle());
 }
 
 void TuioToWinTab::updateTuioObject(TuioObject *tobj) {
-	LogEntry("set obj %d (%d/%d) %f %f %f   %f %f %f %f \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle(), tobj->getMotionSpeed(), tobj->getRotationSpeed(), tobj->getMotionAccel(), tobj->getRotationAccel());
+	//LogEntry("set obj %d (%d/%d) %f %f %f   %f %f %f %f \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID(), tobj->getX(), tobj->getY(), tobj->getAngle(), tobj->getMotionSpeed(), tobj->getRotationSpeed(), tobj->getMotionAccel(), tobj->getRotationAccel());
 }
 
 void TuioToWinTab::removeTuioObject(TuioObject *tobj) {
-	LogEntry("del obj %d (%d/%d) \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID());
+	//LogEntry("del obj %d (%d/%d) \n", tobj->getSymbolID(), tobj->getSessionID(), tobj->getTuioSourceID());
 }
 
 void TuioToWinTab::addTuioCursor(TuioCursor *tcur) {
-	LogEntry("add cur %d (%d/%d) %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
+	//LogEntry("add cur %d (%d/%d) %f %f\n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
 	TUIOCURSOR = TRUE;
 	handleTuioMessage(tcur, NULL);
 }
@@ -1796,21 +1857,21 @@ void TuioToWinTab::updateTuioCursor(TuioCursor *tcur) {
 }
 
 void TuioToWinTab::removeTuioCursor(TuioCursor *tcur) {
-	LogEntry("del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
+	//LogEntry("del cur %d (%d/%d) \n", tcur->getCursorID(), tcur->getSessionID(), tcur->getTuioSourceID(), tcur->getX(), tcur->getY());
 	TUIOCURSOR = FALSE;
 	handleTuioMessage(tcur,NULL);
 }
 
 void TuioToWinTab::addTuioBlob(TuioBlob *tblb) {
-	LogEntry("add blb %d (%d/%d) %f %f %f   %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea());
+	//LogEntry("add blb %d (%d/%d) %f %f %f   %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea());
 }
 
 void TuioToWinTab::updateTuioBlob(TuioBlob *tblb) {
-	LogEntry("set blb %d (%d/%d) %f %f %f   %f %f %f   %f %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea(), tblb->getMotionSpeed(), tblb->getRotationSpeed(), tblb->getMotionAccel(), tblb->getRotationAccel());
+	//LogEntry("set blb %d (%d/%d) %f %f %f   %f %f %f   %f %f %f %f \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID(), tblb->getX(), tblb->getY(), tblb->getAngle(), tblb->getWidth(), tblb->getHeight(), tblb->getArea(), tblb->getMotionSpeed(), tblb->getRotationSpeed(), tblb->getMotionAccel(), tblb->getRotationAccel());
 }
 
 void TuioToWinTab::removeTuioBlob(TuioBlob *tblb) {
-	LogEntry("del blb %d (%d/%d) \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID());
+	//LogEntry("del blb %d (%d/%d) \n", tblb->getBlobID(), tblb->getSessionID(), tblb->getTuioSourceID());
 }
 
 void  TuioToWinTab::refresh(TuioTime frameTime) {
@@ -1841,11 +1902,23 @@ void  TuioToWinTab::refresh(TuioTime frameTime) {
 //	}
 //}
 
+//void moveCursor(float x, float y)
+//{
+//	INPUT  Input = { 0 };
+//	Input.type = INPUT_MOUSE;
+//	Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+//	Input.mi.dx = x* 65535.0f;
+//	Input.mi.dy = y* 65535.0f;
+//	::SendInput(1, &Input, sizeof(INPUT));
+//}
+
 static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure)
 {
 	packet_data_t pkt;
 	BOOL ret;
 	UINT i;
+	float tcur_x;
+	float tcur_y;
 	//info.penFlags = 0;
 	//info.penMask = 0;
 	//info.pressure = 0;
@@ -1859,24 +1932,30 @@ static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure)
 	//	contact = (buttons[0] || buttons[1] || buttons[2]);
 	//	info.pressure = contact ? 100 : 0;
 	//}
+
+	tcur_x = (tcur->getX() - config.tuio_x) / config.tuio_w;
+	tcur_y = (tcur->getY() - config.tuio_y) / config.tuio_h;
 	pkt.serial = 0;
 	pkt.contact = LDOWN || RDOWN || MDOWN;//TUIOCURSOR;//;
 	pkt.pressure = pkt.contact ? max_pressure : min_pressure;
 	pkt.buttons = (LDOWN ? SBN_LCLICK : SBN_NONE) | (RDOWN ? SBN_RCLICK : SBN_NONE) | (MDOWN ? SBN_MCLICK : SBN_NONE);
 	// for some reason gtk+ treats both SBN_RCLICK and SBN_MCLICK as middle click and zooms in. no idea why
-	pkt.x = tablet_width * tcur->getX();
-	pkt.y = tablet_height * tcur->getY(); /*tablet_height -*/ //ctx[N]->lcInExtY
+	pkt.x = config.wintab_x + (tcur_x*config.wintab_w);
+	pkt.y = config.wintab_y + (tcur_y*config.wintab_h); /*config.tablet_height -*/ //ctx[N]->lcInExtY
 	pkt.time = GetTickCount();
+	//LogEntry("x:%f y:%f \n", tcur->getX(), tcur->getY());
 	
 	// adjusts values according to settings
-	//adjustPosition(&pkt);
-	//adjustPressure(&pkt);
+	// adjustPosition(&pkt);
+	// adjustPressure(&pkt);
 
 	// And FINALLY posts wintab message according to values we got from TUIO
 	if (enqueue_packet(&pkt)) {
 		//LogEntry("queued packet\n");
 		//LogPacket(&pkt);
-		if (window){
+
+		//WINTAB
+		if (window && (config.tuio_mouse != 1)){ //
 			for (auto c=0; c<ctx.size(); c++){
 				PostMessage(window, WT_PACKET, (WPARAM)pkt.serial, (LPARAM)ctx[c]);
 				//for some reason the test app opens two contexts, that's why tests fail
@@ -1886,17 +1965,27 @@ static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure)
 				//contexts could be passive or active, so we need to store settings separately
 			}
 		}
-		if (!pkt.contact){
+
+		//MOUSE emulation
+		// we need to also send mouse cursor movement when no buttons are pressed
+		// well, to at least see where we placed it
+
+		if (!pkt.contact || (config.tuio_mouse>0)){
+			
+			INPUT  Input = { 0 };
+			Input.type = INPUT_MOUSE;
+			Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+			Input.mi.dx = config.mouse_x + (tcur_x*config.mouse_w);//(tcur->getX()* 52428.0f) + 0.0f; all this shit depends on which screen is the main one atm and at what position it residess
+			Input.mi.dy = config.mouse_y + (tcur_y*config.mouse_h);//(tcur->getY() * 74564.266f) + 65535.0f;// 58000.0f; //area_y + (area_height * tcur->getY()); //tcur->getY()* 65535.0f;
+			::SendInput(1, &Input, sizeof(INPUT));
+
+			//moveCursor(tcur->getX(), tcur->getY());
 			//for (i = 0; i < MAX_HOOKS; ++i) {
-			//	hook = hooks[i].thread;
+			//hook = hooks[i].thread;
 			//}
-			//window? and what is window here, opened context? I guess it's fake window, that's why it doesn't work
-			//moveCursor( screen_width*tcur->getX(), screen_height*tcur->getY() );
-			//this doesn't work for some reason
-			// need to find a way to get source window handler from dll
-			// we need to also send mouse cursor movement when no buttons are pressed, well, to at least see where we placed it
 			// WM_MOUSEMOVE:
 			// WM_NCMOUSEMOVE:
+
 		}
 		return TRUE;
 		// does it only post a packet to queue, or posts it directly to window?

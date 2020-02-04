@@ -82,16 +82,47 @@ class TuioToWinTab : public TuioListener {
 // EX EMULATIOn.cpp
 
 typedef struct _emu_settings_t {
-    BOOL disableFeedback;
-    BOOL disableGestures;
-    INT shiftX;
-    INT shiftY;
-    BOOL pressureExpand;
-    UINT pressureMin;
-    UINT pressureMax;
-    BOOL pressureCurve;
-    UINT pressurePoint[5];
-    UINT pressureValue[5];
+	//these are the switches
+	UINT tuio_udp;
+	UINT tuio_udp_port;
+	UINT tuio_tcp;
+	UINT tuio_tcp_port;
+	int tuio_mouse;
+
+	//these are environment dependant and/or calculated
+	int screen_width;
+	int screen_height;
+	
+	float tuio_x;
+	float tuio_y;
+	float tuio_w;
+	float tuio_h;
+
+	UINT wintab_x;
+	UINT wintab_y;
+	UINT wintab_w;
+	UINT wintab_h;
+
+	//these are set in stone, but it doesn't hurt to include those here
+	UINT mouse_x;
+	UINT mouse_y;
+	UINT mouse_w;
+	UINT mouse_h;
+	UINT tablet_height;
+	UINT tablet_width;
+
+	//these are leftovers from parts of the project and I'm not sure if these are needed
+	BOOL disableFeedback;
+	BOOL disableGestures;
+	INT shiftX;
+	INT shiftY;
+	BOOL pressureExpand;
+	UINT pressureMin;
+	UINT pressureMax;
+	BOOL pressureCurve;
+	UINT pressurePoint[5];
+	UINT pressureValue[5];
+
 } emu_settings_t;
 
 void emuSetModule(HMODULE hModule);

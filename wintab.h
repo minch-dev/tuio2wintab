@@ -15,7 +15,7 @@ with portions copyright 1991-1998 by LCS/Telegraphics.
 #ifdef __cplusplus
 extern "C" {
 #endif	/* __cplusplus */
-
+	void Init(void);
 /* -------------------------------------------------------------------------- */
 /* Messages */
 #ifndef NOWTMESSAGES
