@@ -1,7 +1,9 @@
 [Switches]
+#[not implemented]
 logging=0
 tuio_udp=1
 tuio_tcp=0
+
 #0 means we don't move mouse cursor while drawing, coords are passed by wintab interface and we navigate with the ending of a line drawn, best quality
 #1 means mouse is emulated while dragging and wintab is off, expect jigsaw lines (pixel rounding artifacts)
 #2..4 might be other options later
