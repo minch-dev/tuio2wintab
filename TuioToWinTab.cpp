@@ -48,11 +48,7 @@ of merchantability or fitness for any particular purpose.
 #include "logging.h"
 #include <wchar.h>
 
-// We already have a function to read/write .ini file in wintab32.cpp, but how do we use it in this case?
-// microsoft docs actually state that a dll can have an entry point function
-//my mistake is that I treat a DLL as a program running in memory, while DLL is just a library of functions\
-// that means there is no starting point here, external program wants some function -> gets it from this library -> it runs and returns results.
-// well, kind of, it must be more complicated than that
+
 
 //this is a touch input signature
 #define MI_WP_SIGNATURE 0xFF515700
@@ -107,72 +103,27 @@ static UINT next_serial = 1;
 static UINT q_start, q_end, q_length;
 static CRITICAL_SECTION q_lock;
 
-//these are not currently used and only needed for imprecise pixel based mouse movements (commented out)
-int screen_width = GetSystemMetrics(SM_CXSCREEN);
-int screen_height = GetSystemMetrics(SM_CYSCREEN);
-
 static LOGCONTEXTA default_context;
 static LPLOGCONTEXTA context = NULL;
 
 std::vector<LPLOGCONTEXTA> ctx;
 
-static std::string _address("localhost");
-static bool _udp = true; //settings->tuio_udp
-static int _port = 3333; //settings->tuio_udp_port
+// todo: read these from ini file
+// We already have a function to read/write .ini file in wintab32.cpp, but how do we use it in this case?
+// my mistake is that I treat a DLL as a program running in memory, while DLL is just a library of functions\
+// that means there is no starting point here, external program wants some function -> gets it from this library -> it runs and returns results.
+// well, kind of, it must be more complicated than that
+
+static std::string _address("localhost");	//settings->tuio_udp_address
+static UINT tuio_udp = 1;		//settings->tuio_udp
+static UINT tuio_udp_port = 3333;	//settings->tuio_udp_port
 static BOOL listening = FALSE;
-static UINT32 max_pressure = 1023;
-static UINT32 min_pressure = 0;
+static UINT32 pressure_max = 1023;	//settings->pressure_max
+static UINT32 pressure_min = 0;   	//settings->pressure_min
 //static LPLOGCONTEXTA contexts[MAX_CONTEXTS];
-
-//we need to determine window that we draw in
-//the format is 
-//+--------+
-//+   2    +	1600x900
-//+------+-+
-//+      +		1280x1024
-//+  1   +
-//+------+
-// 1600x1924
-// 1 is needed and also main monitor
-// TABLET -				x1=0.0507234 y1=0.0106992,  x2=0.9637749 y2=0.9905597 of 1.0f,  
-// mouse(main)			x1=0		 y1=0		 ,  w=65535  y2=65535 of 65535
-// wintab				x1=0		 y1=tablet_height*(900/(900+1024))	 ,  x2==tablet_width*(1280/1600)          y2=tablet_height
-
-//we need to determine window that we draw in
-//the format is 
-//+-------+
-//+   2   +		1360x768
-//+------++
-//+      +
-//+  1   +		1280x1024
-//+------+
-// 1600x1792
-// 1 is needed and also main monitor
-// TABLET -				x1=0.0507234 y1=0.0106992,  x2=0.9637749 y2=0.9905597 of 1.0f,  (precalculated for a given monitor/camera ratios)
-// mouse(main)			x1=0		 y1=0		 ,  w=65535  y2=65535 of 65535   (always the same)
-// wintab				x1=0		 y1=tablet_height*(768/(768+1024))	 ,  x2==tablet_width*(1280/1360)          y2=tablet_height
-
-//these are set in stone, not sure if we need them in config file
-//UINT mouse_x = 0;
-//UINT mouse_y = 0;
-//UINT mouse_w = 0xffff;
-//UINT mouse_h = 0xffff;
-//static UINT tablet_height = 0xffff; //0xffff
-//static UINT tablet_width = 0xffff;
-//
-////these are calulated
-//float tuio_x = 0.0507234f;
-//float tuio_y = 0.0106992f;
-//float tuio_w = 0.9130515f; //0.9637749-0.0507234
-//float tuio_h = 0.9798605f; //0.9905597-0.0106992f
-//
-//UINT wintab_x = 0;
-//UINT wintab_y = 30656;   //tablet_height(65535)*[900/(900+1024)](0.46777546777546777546777546777547)
-//UINT wintab_w = 52428;  // wintab_x2(65535*1280/1600)(0.8)-wintab_x(0)
-//UINT wintab_h = 34879; // wintab_y2(65535)-wintab_y(30656)
-//
-
-
+//these are not currently used and only needed for imprecise pixel based mouse movements (commented out)
+//int screen_width = GetSystemMetrics(SM_CXSCREEN);
+//int screen_height = GetSystemMetrics(SM_CYSCREEN);
 
 
 // check if our vector has the context we need
@@ -224,7 +175,6 @@ static void init_context(LOGCONTEXTA *ctx)
 static BOOL update_screen_metrics(LOGCONTEXTA *ctx)
 {
     // FIXME: need to think about how to handle multiple displays...
-    // hey pal, fuck multiple displays lol
     BOOL changed = FALSE;
     // he gets width and height of a default(?) screen
     // I kinda get it, he assumes, that win8 touch events are pixel based, so he sets Context size to the same values, but I can choose any value I want. right?
@@ -1804,25 +1754,25 @@ BOOL emuWTMgrClose(HMGR hMgr)
 
 
 
-// the problem was: after completing dllmain wipes everything that is not stored anywhere, so we have to store our thread somewhere
+// the problem was: after its completion dllmain wipes everything that is not stored anywhere, so we have to store our thread somewhere
 // now it doesn't hang the application, but the problem is that it first says it binded to port and then says it cannot bind to port
 // the only minor problem is that it tries to bind to that port twice
 // because I define this shit twice, obviously
 TuioToWinTab TuioListenerInstance;
 
-OscReceiver* OscUdpReceiver = new UdpReceiver(_port);
+OscReceiver* OscUdpReceiver = new UdpReceiver(tuio_udp_port);
 TuioClient UdpClient(OscUdpReceiver);
-//OscReceiver* OscTcpReceiver = new TcpReceiver(_address.c_str(), _port);
+//OscReceiver* OscTcpReceiver = new TcpReceiver(_address.c_str(), tuio_udp_port_port);
 //TuioClient TcpClient(OscTcpReceiver);
 void setupReceiver(void){
 	if (!listening) {
 		//TUIO part
 		//we need two different sets of variables to process tcp and udp, but right now I only need one
-		if (_udp){
+		if (tuio_udp){
 			UdpClient.addTuioListener(&TuioListenerInstance);
 			UdpClient.connect(false); //had some problems here, but it turns out the author of this library did his job well
 		}
-		//else {
+		//if {
 		//	TcpClient.addTuioListener(&TuioListenerInstance);
 		//	TcpClient.connect(false);
 		//}
@@ -1937,7 +1887,7 @@ static BOOL handleTuioMessage(TuioCursor *tcur, UINT32 pressure)
 	tcur_y = (tcur->getY() - config.tuio_y) / config.tuio_h;
 	pkt.serial = 0;
 	pkt.contact = LDOWN || RDOWN || MDOWN;//TUIOCURSOR;//;
-	pkt.pressure = pkt.contact ? max_pressure : min_pressure;
+	pkt.pressure = pkt.contact ? pressure_max : pressure_min;
 	pkt.buttons = (LDOWN ? SBN_LCLICK : SBN_NONE) | (RDOWN ? SBN_RCLICK : SBN_NONE) | (MDOWN ? SBN_MCLICK : SBN_NONE);
 	// for some reason gtk+ treats both SBN_RCLICK and SBN_MCLICK as middle click and zooms in. no idea why
 	pkt.x = config.wintab_x + (tcur_x*config.wintab_w);

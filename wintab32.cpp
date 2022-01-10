@@ -1073,14 +1073,22 @@ static void getINIPath(TCHAR *out, UINT length)
 // MMMkay, it sets defaults before loading .ini file
 static void SetDefaults(emu_settings_t *settings)
 {
-	//these are the switches
+	//switches
+	settings->logging = 1;
 	settings->tuio_udp = 1;
-	settings->tuio_udp_port = 3333;
 	settings->tuio_tcp = 0;
-	settings->tuio_tcp_port = 3000;
-	settings->tuio_mouse = 0; //0=nomouse,1=mouseOnly,2=mousePlusWintab
+	settings->tuio_mouse = 0; //0=nomouse,1=mouseOnly,2=mousePlusWintab?
+	settings->tuio_buttons = 1;
 
-    settings->disableFeedback       = TRUE;
+	//IO
+	settings->tuio_udp_port = 3333;
+	settings->tuio_tcp_port = 3000;
+	settings->tuio_udp_address = "localhost";
+	settings->tuio_tcp_address = "localhost";
+	settings->log_file = "C:\\wintab32.txt"; //this needs some unification :/
+	logFile = DEFAULT_LOG_FILE;
+
+    /*settings->disableFeedback       = TRUE;
     settings->disableGestures       = TRUE;
     settings->shiftX                = 0;
     settings->shiftY                = 0;
@@ -1098,7 +1106,7 @@ static void SetDefaults(emu_settings_t *settings)
     settings->pressureValue[1]      = 253;
     settings->pressureValue[2]      = 511;
     settings->pressureValue[3]      = 767;
-    settings->pressureValue[4]      = 1023;
+    settings->pressureValue[4]      = 1023;*/
 
 	//these are calculated or environment based one way or another
 	settings->screen_width = 1024;
@@ -1113,14 +1121,17 @@ static void SetDefaults(emu_settings_t *settings)
 	settings->wintab_w = 0xffff;
 	settings->wintab_h = 0xffff;
 
-	//these are set in stone, but it doesn't hurt to include em
 	settings->mouse_x = 0;
 	settings->mouse_y = 0;
 	settings->mouse_w = 0xffff;
 	settings->mouse_h = 0xffff;
+
+	//these are set in stone, but it doesn't hurt to include em
 	settings->tablet_height = 0xffff;
 	settings->tablet_width = 0xffff;
-	logFile = DEFAULT_LOG_FILE;
+	settings->pressure_max = 1023;
+	settings->pressure_min = 0;
+	settings->pressure_contact = 0;
 }
 
 // this whole wall of text just to load .ini file
@@ -1134,37 +1145,36 @@ static void LoadSettings(emu_settings_t *settings)
 	float fRet;
 
     getINIPath(iniPath, MAX_PATH);
-    
-    nRet = GetPrivateProfileInt(
-        _T("Logging"),
-        _T("Mode"),
-        logging ? 1 : 0,
-        iniPath
-    );
-    logging = (nRet != 0);
+	logFile = (TCHAR *)malloc(sizeof(TCHAR)* stringLength);
 
-    logFile = (TCHAR *) malloc(sizeof(TCHAR) * stringLength);
-    dwRet = GetPrivateProfileString(
-        _T("Logging"),
-        _T("LogFile"),
-        DEFAULT_LOG_FILE,
-        logFile,
-        stringLength,
-        iniPath
-    );
+
+
 
 
 	//we can't normaly store floating point numbers in ini files with these
 	//built in methods and libraries are a pain in the ass, so we just store
 	//it like this tuio_x=0507234 tuio_w=9130515 and divide those by 10000000 to get the floats
-	//lame? i don't give a fuck!
+	//keepin it simple, stupid
 
-
+	// Switches
+	settings->logging = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("logging"),
+		settings->logging,
+		iniPath
+		);
+	logging = settings->logging;
 
 	settings->tuio_mouse = GetPrivateProfileInt(
 		_T("Switches"),
 		_T("tuio_mouse"),
 		settings->tuio_mouse,
+		iniPath
+		);
+	settings->tuio_buttons = GetPrivateProfileInt(
+		_T("Switches"),
+		_T("tuio_buttons"),
+		settings->tuio_buttons,
 		iniPath
 		);
 	settings->tuio_udp = GetPrivateProfileInt(
@@ -1173,26 +1183,41 @@ static void LoadSettings(emu_settings_t *settings)
 		settings->tuio_udp,
 		iniPath
 		);
-	settings->tuio_udp_port = GetPrivateProfileInt(
-		_T("Switches"),
-		_T("tuio_udp_port"),
-		settings->tuio_udp_port,
-		iniPath
-		);
 	settings->tuio_tcp = GetPrivateProfileInt(
 		_T("Switches"),
 		_T("tuio_tcp"),
 		settings->tuio_tcp,
 		iniPath
 		);
+
+
+	// IO
+	dwRet = GetPrivateProfileString(
+		_T("IO"),
+		_T("log_file"),
+		DEFAULT_LOG_FILE,
+		logFile,
+		stringLength,
+		iniPath
+		);
+	//+settings->log_file
+	settings->tuio_udp_port = GetPrivateProfileInt(
+		_T("IO"),
+		_T("tuio_udp_port"),
+		settings->tuio_udp_port,
+		iniPath
+		);
+
 	settings->tuio_tcp_port = GetPrivateProfileInt(
-		_T("Switches"),
+		_T("IO"),
 		_T("tuio_tcp_port"),
 		settings->tuio_tcp_port,
 		iniPath
 		);
+	//tuio_udp_address
+	//tuio_tcp_address
 
-
+	// Metrics
 	nRet = GetPrivateProfileInt(
 		_T("Metrics"), _T("tuio_x"), -1, iniPath
 		);
@@ -1286,6 +1311,24 @@ static void LoadSettings(emu_settings_t *settings)
 		settings->tablet_width,
 		iniPath
 	);
+	settings->pressure_max = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("pressure_max"),
+		settings->pressure_max,
+		iniPath
+	);
+	settings->pressure_min = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("pressure_min"),
+		settings->pressure_min,
+		iniPath
+	);
+	settings->pressure_contact = GetPrivateProfileInt(
+		_T("Metrics"),
+		_T("pressure_contact"),
+		settings->pressure_contact,
+		iniPath
+		);
 
     //nRet = GetPrivateProfileInt(
     //    _T("Emulation"),

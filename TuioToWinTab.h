@@ -82,14 +82,21 @@ class TuioToWinTab : public TuioListener {
 // EX EMULATIOn.cpp
 
 typedef struct _emu_settings_t {
-	//these are the switches
+	//switches
 	UINT tuio_udp;
-	UINT tuio_udp_port;
 	UINT tuio_tcp;
-	UINT tuio_tcp_port;
+	int logging;
 	int tuio_mouse;
+	int tuio_buttons;
 
-	//these are environment dependant and/or calculated
+	//IO
+	std::string log_file;
+	UINT tuio_udp_port;
+	std::string tuio_udp_address;
+	UINT tuio_tcp_port;
+	std::string tuio_tcp_address;
+
+	//Metrics
 	int screen_width;
 	int screen_height;
 	
@@ -103,15 +110,18 @@ typedef struct _emu_settings_t {
 	UINT wintab_w;
 	UINT wintab_h;
 
-	//these are set in stone, but it doesn't hurt to include those here
 	UINT mouse_x;
 	UINT mouse_y;
 	UINT mouse_w;
 	UINT mouse_h;
+	//these are set in stone, but it doesn't hurt to include those here
 	UINT tablet_height;
 	UINT tablet_width;
+	UINT32 pressure_max;
+	UINT32 pressure_min;
+	UINT32 pressure_contact;
 
-	//these are leftovers from parts of the project and I'm not sure if these are needed
+	//these are leftovers from parts of the other project and I'm not sure if these are even needed
 	BOOL disableFeedback;
 	BOOL disableGestures;
 	INT shiftX;
