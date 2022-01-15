@@ -1,20 +1,21 @@
 {
-  "name": "electron-quick-start",
-  "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "name": "TUIO2WINTAB SETTINGS",
+  "version": "0.0.0",
+  "description": "",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
-  "repository": "https://github.com/electron/electron-quick-start",
+  "repository": "https://github.com/minch-yoda/tuio2wintab",
   "keywords": [
-    "Electron",
-    "quick",
-    "start",
-    "tutorial",
-    "demo"
+    "TUIO",
+    "WINTAB",
+    "driver",
+    "GUI",
+    "config",
+    "tablet"
   ],
-  "author": "GitHub",
+  "author": "https://github.com/minch-yoda",
   "license": "CC0-1.0",
   "devDependencies": {
     "electron": "^16.0.7"
