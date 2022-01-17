@@ -1,3 +1,33 @@
-/* styles.css */
+*{
+	box-sizing: border-box;
+}
+workspace{
+	/*border: solid 20px black;
+	background: rgba(63,189,227,0.4);*/
+	
+	box-sizing: content-box;
+	position: relative;
+	display: block;
+	zoom:0.2;
+}
+display{
+	border: solid 1px black;
+	background: rgba(63,189,227,0.4);
+	position: absolute;
+	display: block;
+}
+display.main{
+	background: rgba(63,189,227,0.7);
+}
 
-/* Add styles here to customize the appearance of your app */
+display d{
+    position: absolute;
+	display: block;
+    left: 0;
+    top: 50%;
+	margin-top: -100px;
+    width: 100%;
+	text-align: center;
+    font-size: 200px;
+    font-family: fantasy;
+}

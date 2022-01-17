@@ -5,12 +5,14 @@
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
 	<link href="./styles.css" rel="stylesheet">
 	<title>Setup</title>
+
 </head>
 <body>
-	<h1>Let's try to have some settings here</h1>
-	We are using Node.js <span id="node-version"></span>,
-	Chromium <span id="chrome-version"></span>,
-	and Electron <span id="electron-version"></span>.
+	<workspace style="width:960px;height:900px;">
+		<display index="0" main="0" style="width:320px; height:900px; left:0; top:0;"><d>1</d></display>
+		<display index="1" main="1" style="width:640px; height:480px; left:320px; top:0;"><d>2</d></display>
+	</workspace>
+
 	<script src="./renderer.js"></script>
 </body>
 </html>
