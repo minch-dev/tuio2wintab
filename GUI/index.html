@@ -8,11 +8,96 @@
 
 </head>
 <body>
+	<h3>Choose your <s>destiny</s>... I mean display</h3>
+	<p>Click on a display you're going to use your TUIO tablet with (only one is supported this time)</p>
 	<workspace style="width:960px;height:900px;">
 		<!--display index="0" main="0" style="width:320px; height:900px; left:0; top:0;"><d>1</d></display>
 		<display index="1" main="1" style="width:640px; height:480px; left:320px; top:0;"><d>2</d></display!-->
 	</workspace>
-
+	<params>
+		<fieldset>
+			<legend>[Options]</legend>
+			<p>
+				<input id="tuio_mouse" type="checkbox"> mouse events emulation
+				(precision equals screen resolution, expect jigsaw lines from pixel rounding)
+			</p>
+			<p>
+				<input id="tuio_buttons" type="checkbox">
+				use real mouse buttons as click input (for hybrid mouse+ir stylus)
+			</p>
+			<p>
+				<input id="logging" type="checkbox"> log file
+				<input id="log_file" type="file">
+				<input id="log_file_choose" type="text" value="C:\wintab32.log">
+			</p>
+			<p>
+				<input id="tuio_udp" type="checkbox" checked> udp address
+				<input id="tuio_udp_address" type="text" value="localhost">
+				:<input id="tuio_udp_port" type="text" value="3333">
+			</p>
+			<p>
+				<input id="tuio_tcp" type="checkbox"> tcp address
+				<input id="tuio_tcp_address" type="text" value="localhost">
+				:<input id="tuio_tcp_port" type="text" value="3000">
+			</p>
+		</fieldset>
+		<fieldset>
+			<legend>[INI]</legend>
+			<h4>Load settings from wintab32.ini file</h4>
+			<input id="load_ini_file" type="file">
+			<input id="load_ini_file_choose" type="text" value="C:\wintab32.ini">
+			<button>LOAD</button>
+			
+			<h4>Save the resulting wintab32.ini to...</h4>
+			<p>Must be a folder alongside .exe file of a program you want to use TUIO2wintab driver with, but anything goes.</p>
+			<input id="save_ini_file" type="file">
+			<input id="save_ini_file_choose" type="text" value="C:\wintab32.ini">
+			<button>SAVE</button>
+		</fieldset>
+		<fieldset>
+			<legend>[Metrics]</legend>
+			
+			<h4>These parameters allow you to specify your display position and size in TUIO coordinate space.</h4>
+			<p>
+				<span>Typically your camera and monitor have different aspect ratios or not perfectly aligned with one anothers borders so it's useful to be able to fix this issue here.<br>
+				You can use <button disabled>CALIBRATION</button> to set them.</span>
+				<label>tuio_x <input id="tuio_x" type="text" value="0.0"> </label>
+				<label>tuio_y <input id="tuio_y" type="text" value="0.0"> </label>
+				<label>tuio_w <input id="tuio_w" type="text" value="1.0"> </label>
+				<label>tuio_h <input id="tuio_h" type="text" value="1.0"> </label>
+			</p>
+			
+			<h4>These are calculated using the display schematic at the top</h4>
+			<p>
+				<label>wintab_x <input id="wintab_x" type="text" value="0"> </label>
+				<label>wintab_y <input id="wintab_y" type="text" value="0"> </label>
+				<label>wintab_w <input id="wintab_w" type="text" value="65535"> </label>
+				<label>wintab_h <input id="wintab_h" type="text" value="65535"> </label>
+			</p>
+			
+			<h4>Same applies here</h4>
+			<p>
+				<label>mouse_x <input id="mouse_x" type="text" value="0"> </label>
+				<label>mouse_y <input id="mouse_y" type="text" value="0"> </label>
+				<label>mouse_w <input id="mouse_w" type="text" value="65535"> </label>
+				<label>mouse_h <input id="mouse_h" type="text" value="65535"> </label>
+			</p>
+			
+			<h4>These are set in stone, but just in case</h4>
+			<p>
+				<label>tablet_width <input id="tablet_width" type="text" value="65535"> </label>
+				<label>tablet_height <input id="tablet_height" type="text" value="65535"> </label>
+			</p>
+			
+			<h4>Pressure sensitivity (apparently)</h4>
+			<p>
+			
+				<label>pressure_max <input id="pressure_max" type="text" value="1023"> </label>
+				<label>pressure_min <input id="pressure_min" type="text" value="0"> </label>
+				<label>pressure_contact <input id="pressure_contact" type="text" value="10"> </label>
+			</p>
+		</fieldset>
+	</params>
 	<script src="./renderer.js"></script>
 </body>
 </html>

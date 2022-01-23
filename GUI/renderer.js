@@ -16,24 +16,24 @@
 	function calculateIni(our){
 		//[Switches]
 		//[not implemented]
-		logging=0
-		tuio_udp=1
-		tuio_tcp=0
+		ini.logging=0
+		ini.tuio_udp=1
+		ini.tuio_tcp=0
 
 		//0 means we don't move mouse cursor while drawing, coords are passed by wintab interface and we navigate with the ending of a line drawn, best quality
 		//1 means mouse is emulated while dragging and wintab is off, expect jigsaw lines (pixel rounding artifacts)
 		//2..4 might be other options later
-		tuio_mouse=0
+		ini.tuio_mouse=0
 		//[not implemented], this prop determines if we use buttons of a modified mouse which serves as an IR stylus for the tablet, or if we use pressure levels to detect clicks
-		tuio_buttons=1
+		ini.tuio_buttons=1
 
 		//[IO]
 		//[not implemented], there is a problem with "ini read" and "server start" events sync
 		log_file='C:\wintab32.txt';
-		tuio_udp_port=3333;
-		tuio_udp_address='localhost';
-		tuio_tcp_port=3000;
-		tuio_tcp_address='localhost';
+		ini.tuio_udp_port=3333;
+		ini.tuio_udp_address='localhost';
+		ini.tuio_tcp_port=3000;
+		ini.tuio_tcp_address='localhost';
 		
 		//[Metrics]
 		ini.tuio_x=0;//0325269;

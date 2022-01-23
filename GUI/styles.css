@@ -1,6 +1,9 @@
 *{
 	box-sizing: border-box;
 }
+hmtl,body{
+	font-size:16px;
+}
 workspace{
 	/*border: solid 20px black;
 	background: rgba(63,189,227,0.4);*/
@@ -8,8 +11,25 @@ workspace{
 	box-sizing: content-box;
 	position: relative;
 	display: block;
-	zoom:0.2;
+	zoom:0.1;
 }
+
+h3, h4{
+	margin-bottom:0.2em;
+}
+
+p {
+	margin:0.5em 0;
+}
+
+fieldset{
+	margin:1em 0;
+}
+
+params label {
+	display:block;
+}
+
 display{
 	border: solid 1px black;
 	background: rgba(63,189,227,0.4);
