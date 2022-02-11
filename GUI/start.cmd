@@ -1,0 +1,1 @@
+node_modules\.bin\electron --inspect=9229 .\

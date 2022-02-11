@@ -13,34 +13,44 @@
 		displays = d;
 		drawWorkspace();
     });
+	function loadIniForm(){
+		for (let input of document.querySelectorAll('params input')) {
+			switch(input.getAttribute('type')){
+				case 'text':;
+					ini[input.id] = input.value;
+				break;
+				case 'integer':
+					ini[input.id] = parseInt(input.value);
+				break;
+				case 'float':
+					ini[input.id] = parseFloat(input.value);
+				break;
+				case 'checkbox':
+					ini[input.id] = 1*input.checked;
+				break;
+				case 'file':
+					//this one should be populating the corresponding text field so we dont' need to do anything here
+				break;
+			}
+		}
+		//console.log(ini);
+	}
+	function populateIniForm(){
+		for (let input of document.querySelectorAll('params input')) {
+			switch(input.getAttribute('type')){
+				case 'checkbox':
+					input.checked = !!ini[input.id];
+				break;
+				case 'file':
+					//this one should be populating the corresponding text field so we dont' need to do anything here
+				break;
+				default:
+					input.value = ini[input.id];
+				break;
+			}
+		}		
+	}
 	function calculateIni(our){
-		//[Switches]
-		//[not implemented]
-		ini.logging=0
-		ini.tuio_udp=1
-		ini.tuio_tcp=0
-
-		//0 means we don't move mouse cursor while drawing, coords are passed by wintab interface and we navigate with the ending of a line drawn, best quality
-		//1 means mouse is emulated while dragging and wintab is off, expect jigsaw lines (pixel rounding artifacts)
-		//2..4 might be other options later
-		ini.tuio_mouse=0
-		//[not implemented], this prop determines if we use buttons of a modified mouse which serves as an IR stylus for the tablet, or if we use pressure levels to detect clicks
-		ini.tuio_buttons=1
-
-		//[IO]
-		//[not implemented], there is a problem with "ini read" and "server start" events sync
-		log_file='C:\wintab32.txt';
-		ini.tuio_udp_port=3333;
-		ini.tuio_udp_address='localhost';
-		ini.tuio_tcp_port=3000;
-		ini.tuio_tcp_address='localhost';
-		
-		//[Metrics]
-		ini.tuio_x=0;//0325269;
-		ini.tuio_y=0;
-		ini.tuio_w=10000000;//9299733;
-		ini.tuio_h=10000000;
-
 		ini.wintab_x=Math.round( ((our.bounds.x - ini.total_area_x) / ini.total_area_width) *ffff );
 		ini.wintab_y=Math.round( ((our.bounds.y - ini.total_area_y) / ini.total_area_height) *ffff );
 
@@ -65,8 +75,9 @@
 		ini.pressure_max = 1023;
 		ini.pressure_min = 0;
 		ini.pressure_contact = 10;
-		console.log(ini);
+		//console.log(ini);
 	}
+
 	function selectDisplay(event){
 		var index = event.target.getAttribute('index');
 		for (let dn of document.querySelectorAll('display')) {
@@ -74,7 +85,9 @@
 		}
 		event.target.setAttribute('selected','');
 		ini.our_display = displays.all[index].id;
+		loadIniForm();
 		calculateIni(displays.all[index]);
+		populateIniForm();
 	}
 	function drawWorkspace(){
 		var workspace = document.getElementsByTagName('workspace')[0];

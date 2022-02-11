@@ -7,7 +7,7 @@ function createWindow () {
 	const { screen } = require('electron');
 	const mainWindow = new BrowserWindow({
 		width: 800,
-		height: 600,
+		height: 670,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			nodeIntegration: true,
