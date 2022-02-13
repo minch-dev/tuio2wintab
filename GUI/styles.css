@@ -15,7 +15,10 @@ workspace{
 }
 
 h3, h4{
-	margin-bottom:0.2em;
+	margin-bottom: 0.2em;
+}
+h4:first-of-type{
+	margin-top: 0.2em;
 }
 
 p {
@@ -65,4 +68,18 @@ display d{
 	text-align: center;
     font-size: 200px;
     font-family: fantasy;
+}
+
+#ini_file{
+	width:100%;
+	margin-bottom: 4px;
+}
+#exe_file{
+	direction: rtl;
+    float: right;
+}
+#ini_load,
+#ini_save
+{
+	
 }

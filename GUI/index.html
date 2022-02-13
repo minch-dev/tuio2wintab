@@ -4,12 +4,12 @@
 	<meta charset="UTF-8">
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
 	<link href="./styles.css" rel="stylesheet">
-	<title>Setup</title>
+	<title>Wintab Settings</title>
 
 </head>
 <body>
-	<h3>Choose your <s>dest</s>... I mean display</h3>
-	<p>Click on a display you're going to use your TUIO tablet with (only one is supported this time)</p>
+	<h3>Choose your <s>destiny</s> display:</h3>
+	<p>Select displays you're going to use with your TUIO tablet.<br> If you choose multiple displays (with CTRL key) the drawing area is going to be stretched across them.</p>
 	<workspace style="width:960px;height:900px;">
 		<!--display index="0" main="0" style="width:320px; height:900px; left:0; top:0;"><d>1</d></display>
 		<display index="1" main="1" style="width:640px; height:480px; left:320px; top:0;"><d>2</d></display!-->
@@ -18,36 +18,38 @@
 		<fieldset>
 			<legend>[Options]</legend>
 			<p>
-				<input id="tuio_mouse" type="checkbox"> mouse events emulation
+				<input id="tuio_mouse" type="checkbox" title="Switches"> mouse events emulation
 				(precision equals screen resolution, expect jigsaw lines from pixel rounding)
 			</p>
 			<p>
-				<input id="tuio_buttons" type="checkbox">
+				<input id="tuio_buttons" type="checkbox" title="Switches">
 				use real mouse buttons as click input (for hybrid mouse+ir stylus)
 			</p>
 			<p>
-				<input id="logging" type="checkbox"> log file
-				<input id="log_file_choose" type="file">
-				<input id="log_file" type="text" value="C:\wintab.log">
+				<input id="logging" type="checkbox" title="Switches"> log file
+				<!--input id="log_file_choose" type="file"-->
+				<input id="log_file" type="text" title="IO" value="C:\wintab.log">
 			</p>
 			<p>
-				<input id="tuio_udp" type="checkbox" checked> udp address
-				<input id="tuio_udp_address" type="text" value="localhost">
-				:<input id="tuio_udp_port" type="integer" value="3333">
+				<input id="tuio_udp" type="checkbox" title="Switches" checked> udp address
+				<input id="tuio_udp_address" type="text" title="IO" value="localhost">
+				:<input id="tuio_udp_port" type="integer" title="IO" value="3333">
 			</p>
 			<p>
-				<input id="tuio_tcp" type="checkbox"> tcp address
-				<input id="tuio_tcp_address" type="text" value="localhost">
-				:<input id="tuio_tcp_port" type="integer" value="3000">
+				<input id="tuio_tcp" type="checkbox" title="Switches"> tcp address
+				<input id="tuio_tcp_address" type="text" title="IO" value="localhost">
+				:<input id="tuio_tcp_port" type="integer" title="IO" value="3000">
 			</p>
 		</fieldset>
 		<fieldset>
 			<legend>[INI]</legend>
-			<h4>Choose .exe file you want to change the wintab settings for:</h4>
-			<input id="exe_file" type="file" accept=".exe,.bat,.com,.msi,.cmd">
-			<input id="ini_file" type="text" value="C:\wintab32.ini">
-			<button disabled>LOAD</button> <button disabled>SAVE</button>
-			<p>The driver is going to look for the <b>wintab32.ini</b> file, but anything goes if you just need to save it for later use. Don't be confused by the <b>32</b> part, it's more of a convention than definition: the settings are the same for both x32 and x64 apps.</p>
+			<h4>Enter full path to .ini or choose .exe file you want to change settings for: <input id="exe_file" type="file" accept=".exe,.bat,.com,.msi,.cmd"></h4>
+			
+			<input id="ini_file" type="text" title="IO" value="C:\wintab32.ini">
+			<button id="ini_load" disabled>LOAD</button>
+			<button id="ini_save">SAVE</button>
+			
+			<p>Both 32 and 64 bit drivers look for the <b>wintab32.ini</b> file, (the filename is just an old convention).</p>
 		</fieldset>
 		<fieldset>
 			<legend>[Metrics]</legend>
@@ -56,41 +58,43 @@
 			<p>
 				<span>Typically your camera and monitor have different aspect ratios and aren't perfectly aligned with one anothers borders so it's useful to be able to fix this issue here.<br>
 				You can use <button disabled title="(NO, YOU CAN'T!)">CALIBRATION</button> to set them.</span>
-				<label>tuio_x <input id="tuio_x" type="float" value="0.0"> </label>
-				<label>tuio_y <input id="tuio_y" type="float" value="0.0"> </label>
-				<label>tuio_w <input id="tuio_w" type="float" value="1.0"> </label>
-				<label>tuio_h <input id="tuio_h" type="float" value="1.0"> </label>
+				<label>tuio_x <input id="tuio_x" title="Metrics" type="float" value="0.0"> </label>
+				<label>tuio_y <input id="tuio_y" title="Metrics" type="float" value="0.0"> </label>
+				<label>tuio_w <input id="tuio_w" title="Metrics" type="float" value="1.0"> </label>
+				<label>tuio_h <input id="tuio_h" title="Metrics" type="float" value="1.0"> </label>
 			</p>
 			
-			<h4>These are calculated according to your display of choice:</h4>
+			<h4>These are calculated according to your display(s) of choise:</h4>
 			<p>
-				<label>wintab_x <input id="wintab_x" type="integer" value="0"> </label>
-				<label>wintab_y <input id="wintab_y" type="integer" value="0"> </label>
-				<label>wintab_w <input id="wintab_w" type="integer" value="65535"> </label>
-				<label>wintab_h <input id="wintab_h" type="integer" value="65535"> </label>
+				<label>wintab_x <input id="wintab_x" title="Metrics" type="integer" value="0"> </label>
+				<label>wintab_y <input id="wintab_y" title="Metrics" type="integer" value="0"> </label>
+				<label>wintab_w <input id="wintab_w" title="Metrics" type="integer" value="65535"> </label>
+				<label>wintab_h <input id="wintab_h" title="Metrics" type="integer" value="65535"> </label>
 			</p>
 			
 			<h4>Same applies here</h4>
 			<p>
-				<label>mouse_x <input id="mouse_x" type="integer" value="0"> </label>
-				<label>mouse_y <input id="mouse_y" type="integer" value="0"> </label>
-				<label>mouse_w <input id="mouse_w" type="integer" value="65535"> </label>
-				<label>mouse_h <input id="mouse_h" type="integer" value="65535"> </label>
-			</p>
-			
-			<h4>These are set in stone, but just in case</h4>
-			<p>
-				<label>tablet_width <input id="tablet_width" type="integer" value="65535"> </label>
-				<label>tablet_height <input id="tablet_height" type="integer" value="65535"> </label>
+				<label>mouse_x <input id="mouse_x" title="Metrics" type="integer" value="0"> </label>
+				<label>mouse_y <input id="mouse_y" title="Metrics" type="integer" value="0"> </label>
+				<label>mouse_w <input id="mouse_w" title="Metrics" type="integer" value="65535"> </label>
+				<label>mouse_h <input id="mouse_h" title="Metrics" type="integer" value="65535"> </label>
 			</p>
 			
 			<h4>Pressure sensitivity (apparently)</h4>
 			<p>
 			
-				<label>pressure_max <input id="pressure_max" type="integer" value="1023"> </label>
-				<label>pressure_min <input id="pressure_min" type="integer" value="0"> </label>
-				<label>pressure_contact <input id="pressure_contact" type="integer" value="10"> </label>
+				<label>pressure_max <input id="pressure_max" title="Metrics" type="integer" value="1023"> </label>
+				<label>pressure_min <input id="pressure_min" title="Metrics" type="integer" value="0"> </label>
+				<label>pressure_contact <input id="pressure_contact" title="Metrics" type="integer" value="10"> </label>
 			</p>
+			
+			<h4>(These are set in stone, but just in case)</h4>
+			<p>
+				<label>tablet_width <input id="tablet_width" title="Metrics" type="integer" value="65535"> </label>
+				<label>tablet_height <input id="tablet_height" title="Metrics" type="integer" value="65535"> </label>
+			</p>
+			
+
 		</fieldset>
 	</params>
 	<script src="./renderer.js"></script>
