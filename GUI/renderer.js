@@ -6,6 +6,7 @@
 // process.
     const electron = require('electron');
     const ipcRenderer = electron.ipcRenderer;
+	const fs = require('fs');
 	var displays = {};
 	var ini = {Switches:{},IO:{},Metrics:{}};
 	var ffff = 65535;
@@ -26,17 +27,19 @@
 		var path = document.getElementById('ini_file').value;
 		for(var section in ini){
 			ini_txt += '['+section+']\r\n';
-			console.log(section);
+			//console.log(section);
 			for (var param in ini[section]){
 				var val = ini[section][param];
 				if(section == 'Metrics' & param.indexOf('tuio_')==0){
 					val = Math.round(val * 10000000);
 				}
-				ini_txt += param+'='+val+'\r\n\r\n';
+				ini_txt += param+'='+val+'\r\n';
+				
 			}
 			ini_txt += '\r\n\r\n';
 		}
-		console.log(ini_txt);
+		try { fs.writeFileSync(path, ini_txt, 'ascii'); } //need to indicate it's done later
+		catch(err) { alert('Unfortunetely, we couldn\'t save this file... My condolences.'); }
 		// nooooow we need to save this to a file. next time!
 	}
 	
