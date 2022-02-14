@@ -4,24 +4,44 @@
 // `nodeIntegration` is turned off. Use `preload.js` to
 // selectively enable features needed in the rendering
 // process.
-    const electron = require('electron');
-    const ipcRenderer = electron.ipcRenderer;
-	const fs = require('fs');
+    const ELECTRON = require('electron');
+    const IPC = ELECTRON.ipcRenderer;
+	const INI = require('ini');
+	const FS = require('fs');
 	var displays = {};
 	var ini = {Switches:{},IO:{},Metrics:{}};
 	var ffff = 65535;
-    ipcRenderer.on('displays-changed', function (event, d) {
+	var dvdr = 10000000;
+    IPC.on('displays-changed', function (event, d) {
 		displays = d;
 		drawWorkspace();
     });
-	document.getElementById('exe_file').onchange = function(event){
+	document.getElementById('exe_file').onchange = updatePath;
+	document.getElementById('exe_file').onclick = updatePath;
+	document.getElementById('ini_save').onclick = saveIniFile;
+	document.getElementById('ini_load').onclick = loadIniFile;
+	
+	function updatePath(event){
 		var path = event.target.files[0].path;
 		path = path.substring(0, path.lastIndexOf("\\"));
 		document.getElementById('ini_file').value = path+'\\wintab32.ini';
 	}
-	document.getElementById('ini_save').onclick = saveIniFile;
-	
-	
+	function loadIniFile(){
+		var path = document.getElementById('ini_file').value;
+		FS.readFile(path, 'ascii', (error, ini_txt) => {
+			if(error){
+				alert('Couldn\'t load this file. Just couldn\'t...');
+			} else {
+				ini = INI.parse(ini_txt);
+				ini.Metrics.tuio_x /= dvdr;
+				ini.Metrics.tuio_y /= dvdr;
+				ini.Metrics.tuio_w /= dvdr;
+				ini.Metrics.tuio_h /= dvdr;
+				populateIniForm();
+				loadIniForm();
+			}
+		});
+	}	
 	function saveIniFile(){
 		var ini_txt = '';
 		var path = document.getElementById('ini_file').value;
@@ -31,16 +51,15 @@
 			for (var param in ini[section]){
 				var val = ini[section][param];
 				if(section == 'Metrics' & param.indexOf('tuio_')==0){
-					val = Math.round(val * 10000000);
+					val = Math.round(val * dvdr);
 				}
 				ini_txt += param+'='+val+'\r\n';
 				
 			}
 			ini_txt += '\r\n\r\n';
 		}
-		try { fs.writeFileSync(path, ini_txt, 'ascii'); } //need to indicate it's done later
+		try { FS.writeFileSync(path, ini_txt, 'ascii'); } //need to indicate it's done later
 		catch(err) { alert('Unfortunetely, we couldn\'t save this file... My condolences.'); }
-		// nooooow we need to save this to a file. next time!
 	}
 	
 	function loadIniForm(){
@@ -69,7 +88,7 @@
 		for (var input of document.querySelectorAll('params input')) {
 			switch(input.getAttribute('type')){
 				case 'checkbox':
-					input.checked = !!ini[input.title][input.id];
+					input.checked = !!parseInt(ini[input.title][input.id]);
 				break;
 				case 'file':
 					//this one should be populating the corresponding text field so we dont' need to do anything here
